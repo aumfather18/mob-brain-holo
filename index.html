@@ -1,0 +1,2352 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>สมองม็อบ · โฮโลแกรมความทรงจำ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#02040a;
+    --bg-1:#06101b;
+    --panel:rgba(7,14,24,0.72);
+    --panel-border:rgba(96,202,255,0.18);
+    --line:rgba(255,255,255,0.06);
+    --text-0:#ebf7ff;
+    --text-1:#9bb2c8;
+    --text-2:#526b84;
+    --accent:#63ddff;
+    --accent-dim:rgba(99,221,255,0.15);
+    --pill-off:rgba(255,255,255,0.035);
+    --space-cyan:#66ddff;
+    --space-blue:#4a8cff;
+    --space-violet:#957cff;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg-0);
+    color:var(--text-0);
+    font-family:'Noto Sans Thai','Inter',sans-serif;
+    overflow:hidden;
+  }
+  #app{
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  .topbar{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding:0 18px;
+    height:50px;
+    background:linear-gradient(180deg,rgba(8,13,20,.96),rgba(3,7,12,.94));
+    border-bottom:1px solid rgba(120,200,255,.08);
+    box-shadow:0 8px 30px rgba(0,0,0,.3);
+    flex-shrink:0;
+    backdrop-filter:blur(10px);
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-weight:600;
+    font-size:15px;
+    color:var(--accent);
+    margin-right:18px;
+    letter-spacing:0.3px;
+  }
+  .brand .glyph{
+    width:20px;height:20px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;
+  }
+  .tab{
+    padding:8px 14px;
+    font-size:13.5px;
+    color:var(--text-1);
+    border-radius:8px;
+    cursor:pointer;
+    border:1px solid transparent;
+    transition:background .15s, color .15s;
+    white-space:nowrap;
+  }
+  .tab:hover{ color:var(--text-0); background:rgba(255,255,255,0.04); }
+  .tab.active{
+    color:var(--text-0);
+    background:rgba(87,217,255,0.09);
+    border-color:rgba(87,217,255,0.35);
+  }
+  .main{
+    flex:1;
+    display:flex;
+    min-height:0;
+  }
+  .sidebar{
+    width:318px;
+    flex-shrink:0;
+    padding:12px;
+    overflow-y:auto;
+    border-right:1px solid rgba(110,190,255,.08);
+    background:
+      radial-gradient(circle at 18% 10%,rgba(44,88,140,.16),transparent 28%),
+      linear-gradient(180deg,#07101b 0%,#040911 100%);
+    box-shadow:10px 0 40px rgba(0,0,0,.28);
+  }
+  .card{
+    background:linear-gradient(180deg,rgba(10,20,31,.78),rgba(6,13,22,.68));
+    border:1px solid rgba(103,202,255,.15);
+    border-radius:13px;
+    padding:13px;
+    margin-bottom:10px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.02),0 8px 24px rgba(0,0,0,.15);
+    backdrop-filter:blur(12px);
+  }
+  .card h2{
+    margin:0 0 3px 0;
+    font-size:14.5px;
+    font-weight:600;
+    display:flex;align-items:center;gap:7px;
+  }
+  .card h2 .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 8px var(--accent);
+  }
+  .stat-line{
+    font-size:12px;
+    color:var(--text-1);
+    margin-bottom:11px;
+  }
+  .stat-line b{ color:var(--text-0); font-weight:600; }
+  .row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .pill{
+    font-size:12px;
+    padding:6px 10px;
+    border-radius:7px;
+    background:var(--pill-off);
+    border:1px solid var(--panel-border);
+    color:var(--text-1);
+    cursor:pointer;
+    user-select:none;
+    transition:background .15s,color .15s,border-color .15s;
+    display:flex;align-items:center;gap:6px;
+  }
+  .pill:hover{ color:var(--text-0); }
+  .pill.on{
+    background:var(--accent-dim);
+    border-color:rgba(87,217,255,0.55);
+    color:var(--text-0);
+  }
+  .pill.owner-pill{ font-family:'Inter','Noto Sans Thai',sans-serif; }
+  .pill .swatch{
+    width:8px;height:8px;border-radius:50%;flex-shrink:0;
+  }
+  .pill .count{ opacity:.65; font-size:11px; }
+  .pill.wide{ width:100%; justify-content:center; }
+  .section-label{
+    font-size:11.5px;
+    color:var(--text-2);
+    margin:2px 0 7px 0;
+  }
+  input.search{
+    width:100%;
+    background:#050b12;
+    border:1px solid var(--panel-border);
+    border-radius:8px;
+    padding:9px 11px;
+    color:var(--text-0);
+    font-size:12.5px;
+    font-family:inherit;
+    outline:none;
+  }
+  input.search::placeholder{ color:var(--text-2); }
+  input.search:focus{ border-color:var(--accent); }
+  .canvas-wrap{
+    position:relative;
+    flex:1;
+    min-width:0;
+    overflow:hidden;
+    background:
+      radial-gradient(ellipse 40% 45% at 52% 45%,rgba(41,113,171,.10),transparent 58%),
+      radial-gradient(ellipse 78% 62% at 52% 49%,rgba(70,46,132,.10),transparent 60%),
+      radial-gradient(ellipse 100% 100% at 50% 50%,#03060d 0%,#010208 72%);
+  }
+  canvas#scene{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    cursor:grab;
+    filter:contrast(1.08) saturate(1.1);
+    touch-action:none;
+  }
+  canvas#scene.dragging{ cursor:grabbing; }
+  .hint{
+    position:absolute;
+    left:14px; bottom:12px;
+    font-size:10.5px;
+    letter-spacing:.1px;
+    color:rgba(157,186,210,.7);
+    background:rgba(3,8,14,.52);
+    border:1px solid rgba(107,203,255,.11);
+    padding:6px 10px;
+    border-radius:8px;
+    pointer-events:none;
+    backdrop-filter:blur(8px);
+  }
+  #minimap{
+    position:absolute;
+    right:14px; bottom:14px;
+    width:160px; height:120px;
+    background:rgba(6,11,18,0.55);
+    border:1px solid var(--panel-border);
+    border-radius:8px;
+  }
+  .space-mark{
+    position:absolute;
+    left:18px;
+    top:14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font:600 10px/1.2 'Inter','Noto Sans Thai',sans-serif;
+    letter-spacing:1.7px;
+    color:rgba(183,231,255,.48);
+    pointer-events:none;
+    user-select:none;
+  }
+  .space-mark small{
+    font-weight:400;
+    letter-spacing:1px;
+    color:rgba(150,182,208,.3);
+  }
+  .space-dot{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#69ddff;
+    box-shadow:0 0 10px #69ddff,0 0 20px rgba(105,221,255,.55);
+  }
+
+  .detail-panel{
+    position:absolute;
+    top:16px; right:16px;
+    width:250px;
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:12px;
+    padding:14px;
+    backdrop-filter:blur(6px);
+    transform:translateX(280px);
+    opacity:0;
+    transition:transform .18s ease, opacity .18s ease;
+  }
+  .detail-panel.show{ transform:translateX(0); opacity:1; }
+  .detail-panel .close{
+    position:absolute; top:10px; right:12px;
+    color:var(--text-2); cursor:pointer; font-size:13px;
+  }
+  .detail-panel .close:hover{ color:var(--text-0); }
+  .detail-badges{ display:flex; gap:6px; flex-wrap:wrap; margin:9px 0; }
+  .badge{
+    font-size:10.5px;
+    padding:3px 8px;
+    border-radius:5px;
+    background:rgba(255,255,255,0.06);
+    color:var(--text-1);
+  }
+  .detail-panel h3{ margin:0; font-size:14px; font-weight:600; padding-right:16px; }
+  .detail-excerpt{ font-size:12px; color:var(--text-1); line-height:1.55; margin-top:8px; }
+  .detail-meta{ font-size:11px; color:var(--text-2); margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
+  .toast{
+    position:absolute;
+    top:16px; left:50%;
+    transform:translate(-50%,-12px);
+    background:rgba(10,16,26,0.92);
+    border:1px solid var(--panel-border);
+    color:var(--text-0);
+    padding:9px 16px;
+    border-radius:8px;
+    font-size:12.5px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%,0); }
+  .toprow-btns{ display:flex; gap:6px; }
+  ::-webkit-scrollbar{ width:8px; }
+  ::-webkit-scrollbar-thumb{ background:rgba(255,255,255,0.1); border-radius:4px; }
+
+  .screen{
+    display:none;
+    flex:1;
+    min-width:0;
+    overflow-y:auto;
+    padding:26px 32px;
+    background:linear-gradient(180deg, #070d16, #050a12);
+  }
+  .screen.active{ display:block; }
+  .screen[data-screen="chat"].active{ display:flex; flex-direction:column; overflow:hidden; }
+  .chat-layout{ display:flex; gap:18px; flex:1; min-height:0; }
+  .chat-hologram-panel{
+    width:270px; flex-shrink:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; padding:14px;
+    background:radial-gradient(ellipse 70% 65% at 50% 42%,rgba(40,90,140,.16),transparent 65%),#050a12;
+    border:1px solid var(--panel-border); border-radius:14px;
+  }
+  #chatBrainCanvas{ width:100%; height:260px; }
+  .chat-hologram-status{ font-size:11.5px; color:var(--text-1); letter-spacing:.3px; }
+  @media (max-width:900px){ .chat-hologram-panel{ display:none; } }
+  .screen h1{ font-size:19px; font-weight:600; margin:0 0 4px; }
+  .screen .subtitle{ font-size:13px; color:var(--text-1); margin-bottom:20px; max-width:560px; }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:22px; max-width:760px; }
+  .stat-card{ background:var(--panel); border:1px solid var(--panel-border); border-radius:12px; padding:14px; }
+  .stat-card .label{ font-size:11.5px; color:var(--text-2); margin-bottom:7px; }
+  .stat-card .value{ font-size:19px; font-weight:600; }
+
+  .bar-chart{ display:flex; align-items:flex-end; gap:8px; height:110px; max-width:420px; margin-bottom:5px; }
+  .bar-chart .bar{ flex:1; background:linear-gradient(180deg, var(--accent), rgba(87,217,255,0.15)); border-radius:4px 4px 0 0; }
+  .bar-chart-labels{ display:flex; gap:8px; max-width:420px; font-size:10.5px; color:var(--text-2); margin-bottom:22px; }
+  .bar-chart-labels span{ flex:1; text-align:center; }
+
+  .action-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+
+  .memory-list{ display:flex; flex-direction:column; gap:8px; margin-top:14px; max-width:640px; }
+  .memory-item{ background:var(--panel); border:1px solid var(--panel-border); border-radius:10px; padding:12px 14px; cursor:pointer; }
+  .memory-item .mi-top{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .memory-item .mi-dot{ width:8px;height:8px;border-radius:50%; flex-shrink:0; }
+  .memory-item .mi-title{ font-size:13px; font-weight:500; }
+  .memory-item .mi-badges{ display:flex; gap:6px; flex-wrap:wrap; }
+  .memory-item .mi-excerpt{ font-size:11.5px; color:var(--text-1); display:none; margin-top:8px; line-height:1.55; }
+  .memory-item.open .mi-excerpt{ display:block; }
+
+  .memory-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 14px;max-width:900px;}
+  .memory-toolbar .search{max-width:320px;}
+  .memory-stats{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px;max-width:900px;}
+  .mini-stat{background:var(--panel);border:1px solid var(--panel-border);border-radius:9px;padding:8px 11px;font-size:11.5px;color:var(--text-1);}
+  .mini-stat b{color:var(--text-0);font-weight:600;margin-right:4px;}
+  .memory-item{position:relative;}
+  .memory-item .mi-actions{display:flex;gap:5px;position:absolute;right:10px;top:10px;}
+  .memory-item .mi-action{font:inherit;font-size:10.5px;color:var(--text-2);background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:6px;padding:3px 6px;cursor:pointer;}
+  .memory-item .mi-action:hover{color:var(--text-0);border-color:var(--panel-border);}
+  .memory-item .mi-content{font-size:12px;color:var(--text-1);line-height:1.6;margin-top:9px;padding-right:0;}
+  .memory-item .mi-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;}
+  .tag{font-size:10px;padding:3px 7px;border-radius:5px;background:rgba(87,217,255,.07);border:1px solid rgba(87,217,255,.13);color:#a9dff0;}
+  .importance{font-size:10.5px;color:var(--text-2);margin-top:7px;}
+  .memory-empty{padding:18px;border:1px dashed var(--panel-border);border-radius:10px;color:var(--text-2);max-width:640px;}
+  .memory-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;z-index:30;padding:18px;}
+  .memory-modal-backdrop.show{display:flex;}
+  .memory-modal{width:min(680px,100%);max-height:90vh;overflow:auto;background:#09121d;border:1px solid var(--panel-border);border-radius:14px;padding:18px;box-shadow:0 20px 80px rgba(0,0,0,.5);}
+  .memory-modal h2{margin:0 0 5px;font-size:16px;}
+  .memory-modal .sub{font-size:11.5px;color:var(--text-2);margin-bottom:14px;}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .form-field{display:flex;flex-direction:column;gap:5px;}
+  .form-field.full{grid-column:1/-1;}
+  .form-field label{font-size:11px;color:var(--text-2);}
+  .form-field input,.form-field textarea,.form-field select{width:100%;background:#050b12;border:1px solid var(--panel-border);border-radius:8px;padding:9px 10px;color:var(--text-0);font:inherit;font-size:12px;outline:none;}
+  .form-field textarea{min-height:130px;resize:vertical;line-height:1.55;}
+  .form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;}
+  .check-row{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-1);}
+  .check-row input{accent-color:var(--accent);}
+  @media(max-width:720px){.form-grid{grid-template-columns:1fr}.form-field.full{grid-column:auto}.memory-toolbar .search{max-width:none;flex:1;}.sidebar{width:260px}.space-mark{left:10px;top:10px}}
+  .lock-wrap{ max-width:380px; margin:36px auto 0; text-align:center; }
+  .lock-icon{ font-size:32px; margin-bottom:10px; }
+  .lock-wrap .search{ text-align:center; letter-spacing:3px; margin:14px 0; }
+  .vault-list{ margin-top:18px; display:flex; flex-direction:column; gap:8px; text-align:left; }
+
+  .chat-area{ display:flex; flex-direction:column; flex:1; min-height:0; max-width:640px; }
+  .chat-messages{ flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-bottom:14px; }
+  .msg{ max-width:75%; padding:9px 13px; border-radius:14px; font-size:13px; line-height:1.5; }
+  .msg.mob{ align-self:flex-start; background:var(--panel); border:1px solid var(--panel-border); border-bottom-left-radius:4px; }
+  .msg.typing{ opacity:.6; font-style:italic; }
+  .msg-save-btn{ margin-top:6px; font-size:10.5px; color:var(--accent); cursor:pointer; opacity:.75; }
+  .msg-save-btn:hover{ opacity:1; text-decoration:underline; }
+  .api-toggle{ font-size:11.5px; color:var(--accent); cursor:pointer; margin-bottom:8px; user-select:none; }
+  .api-settings{ margin-bottom:14px; max-width:420px; }
+  .api-settings input{ margin-bottom:8px; }
+  .api-warn{ font-size:10.5px; color:#ffab40; line-height:1.55; }
+  .msg.me{ align-self:flex-end; background:rgba(87,217,255,0.18); border:1px solid rgba(87,217,255,0.4); border-bottom-right-radius:4px; }
+  .chat-input-row{ display:flex; gap:8px; margin-top:10px; flex-shrink:0; }
+  .chat-input-row input{ flex:1; }
+  .attach-preview{ display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--panel-border); border-radius:9px; padding:7px 11px; margin-top:8px; font-size:12px; color:var(--text-1); flex-shrink:0; }
+  .attach-preview .ap-remove{ margin-left:auto; cursor:pointer; color:var(--text-2); }
+  .attach-preview .ap-remove:hover{ color:var(--text-0); }
+  .msg-attachment{ font-size:11px; color:var(--text-2); margin-top:6px; opacity:.85; }
+
+  .tool-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; margin-top:14px; max-width:800px; }
+  .tool-card{ background:var(--panel); border:1px solid var(--panel-border); border-radius:12px; padding:16px 14px; cursor:pointer; transition:border-color .15s; }
+  .tool-card:hover{ border-color:rgba(87,217,255,0.5); }
+  .tool-card .tc-title{ font-size:13px; font-weight:500; margin-bottom:5px; }
+  .tool-card .tc-desc{ font-size:11px; color:var(--text-2); line-height:1.45; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <nav class="topbar">
+    <div class="brand"><span class="glyph">Ψ</span> ม็อบ</div>
+    <div class="tab" data-tab="ชีพจร" data-screen="pulse">ชีพจร</div>
+    <div class="tab" data-tab="แท่นบัญชาการ" data-screen="command">แท่นบัญชาการ</div>
+    <div class="tab" data-tab="ความทรงจำ" data-screen="memory">ความทรงจำ</div>
+    <div class="tab active" data-tab="สมองม็อบ" data-screen="brain">สมองม็อบ</div>
+    <div class="tab" data-tab="ห้องลับความจำ" data-screen="vault">ห้องลับความจำ</div>
+    <div class="tab" data-tab="คุยกับม็อบ" data-screen="chat">คุยกับม็อบ</div>
+    <div class="tab" data-tab="เครื่องมือ" data-screen="tools">เครื่องมือ</div>
+    <div class="pill" id="syncStatusBtn" style="margin-left:auto">เข้าสู่ระบบเพื่อซิงค์</div>
+  </nav>
+
+  <div class="main">
+    <aside class="sidebar" id="sidebarBrain">
+
+      <div class="card">
+        <h2><span class="dot"></span>สมองม็อบ · โฮโลแกรม</h2>
+        <div class="stat-line"><b id="statNodes">0</b> ก้อน · <b id="statEdges">0</b> เส้นไซแนปส์</div>
+        <div class="row">
+          <div class="pill" id="btnSave">เก็บ</div>
+          <div class="pill on" id="btnAutoRotate">หมุนเอง</div>
+          <div class="pill" id="btnReset">มุมมองเริ่มต้น</div>
+        </div>
+        <div class="pill wide" id="btnToggle2D">แบบ 2 มิติ ↗</div>
+      </div>
+
+      <div class="card">
+        <div class="section-label">ระบายสีตาม</div>
+        <div class="row" id="colorByGroup">
+          <div class="pill" data-colorby="emotion">อารมณ์</div>
+          <div class="pill" data-colorby="cluster">เกาะตัวตน</div>
+          <div class="pill on" data-colorby="owner">เจ้าของ</div>
+          <div class="pill" data-colorby="region">ส่วนของสมอง</div>
+        </div>
+
+        <div class="section-label">เจ้าของความจำ</div>
+        <div class="row" id="ownerGroup"></div>
+
+        <div class="row">
+          <div class="pill on" id="chkOnlyEdged">เฉพาะก้อนที่มีเส้น</div>
+          <div class="pill" id="chkHideToc">ซ่อนก้อนสารบัญ</div>
+          <div class="pill" id="chkSelfAxis">เฉพาะแกนตัวตน</div>
+        </div>
+
+        <div class="row">
+          <div class="pill on" id="chkCortex">เปลือกสมอง</div>
+          <div class="pill on" id="chkSynapse">เส้นไซแนปส์</div>
+          <div class="pill on" id="chkLabels">ป้ายส่วนสมอง</div>
+          <div class="pill on" id="chkDust">ผงดาวเปลือกสมอง</div>
+        </div>
+
+        <input class="search" id="searchBox" placeholder="ค้นชื่อก้อน...">
+      </div>
+
+    </aside>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="scene"></canvas>
+      <canvas id="minimap"></canvas>
+      <div class="space-mark"><span class="space-dot"></span> NEURAL GALAXY <small>MEMORY FIELD</small></div>
+      <div class="hint">ลาก = หมุนสมอง · ล้อ = ซูม · คลิกขวาลาก = เลื่อน · คลิกก้อน = อ่านรายละเอียด</div>
+      <div class="toast" id="toast"></div>
+
+      <div class="detail-panel" id="detailPanel">
+        <div class="close" id="closeDetail">✕</div>
+        <h3 id="detailTitle"></h3>
+        <div class="detail-badges" id="detailBadges"></div>
+        <div class="detail-excerpt" id="detailExcerpt"></div>
+        <div class="detail-meta" id="detailMeta"></div>
+      </div>
+    </div>
+
+    <div class="screen" data-screen="pulse">
+      <h1>ชีพจร</h1>
+      <div class="subtitle">ภาพรวมอารมณ์และกิจกรรมของม็อบในช่วง 7 วันที่ผ่านมา</div>
+      <div class="stat-grid" id="pulseStats"></div>
+      <div class="bar-chart" id="pulseBars"></div>
+      <div class="bar-chart-labels" id="pulseBarLabels"></div>
+      <div class="section-label">แท็กอารมณ์ตามความถี่</div>
+      <div class="row" id="pulseEmotionTags"></div>
+    </div>
+
+    <div class="screen" data-screen="command">
+      <h1>แท่นบัญชาการ</h1>
+      <div class="subtitle">สถานะระบบความจำโดยรวมของม็อบ</div>
+      <div class="stat-grid" id="commandStats"></div>
+      <div class="section-label">คำสั่งด่วน</div>
+      <div class="action-row">
+        <div class="pill" id="btnSync">ซิงค์ตอนนี้</div>
+        <div class="pill" id="btnBackup">สำรองข้อมูล</div>
+        <div class="pill" id="btnClearCache">ล้างแคช</div>
+      </div>
+    </div>
+
+    <div class="screen" data-screen="memory">
+      <h1>ความทรงจำ</h1>
+      <div class="subtitle">Memory Engine · ข้อมูลชุดนี้เก็บในเครื่องและคงอยู่หลังปิดหน้าเว็บ</div>
+      <div class="memory-stats" id="memoryStats"></div>
+      <div class="memory-toolbar">
+        <input class="search" id="memorySearch" placeholder="ค้นชื่อ เนื้อหา หรือแท็ก...">
+        <div class="pill on" id="memoryFilterAll">ทั้งหมด</div>
+        <div class="pill" id="memoryFilterPinned">ปักหมุด</div>
+        <div class="pill" id="memoryFilterArchived">เก็บถาวร</div>
+        <div class="pill on" id="memorySortRecent">ล่าสุด</div>
+        <div class="pill" id="memorySortImportant">สำคัญ</div>
+        <div class="pill" id="btnNewMemory">+ ความทรงจำใหม่</div>
+      </div>
+      <div class="memory-list" id="memoryList"></div>
+    </div>
+
+    <div class="memory-modal-backdrop" id="memoryModal">
+      <div class="memory-modal">
+        <h2 id="memoryModalTitle">เพิ่มความทรงจำ</h2>
+        <div class="sub">บันทึกนี้จะถูกเก็บไว้ในเบราว์เซอร์เครื่องนี้ก่อน และสามารถส่งออกเป็น JSON ได้</div>
+        <div class="form-grid">
+          <div class="form-field full"><label>ชื่อความทรงจำ</label><input id="memTitle" maxlength="140" placeholder="เช่น เป้าหมายงานที่อยากทำในปีนี้"></div>
+          <div class="form-field full"><label>เนื้อหา</label><textarea id="memContent" placeholder="เล่าเหตุการณ์ ความคิด หรือสิ่งที่อยากให้ม็อบจำ..."></textarea></div>
+          <div class="form-field"><label>เจ้าของ</label><select id="memOwner"></select></div>
+          <div class="form-field"><label>อารมณ์</label><select id="memEmotion"></select></div>
+          <div class="form-field"><label>ส่วนของสมอง</label><select id="memRegion"></select></div>
+          <div class="form-field"><label>ความสำคัญ (1–5)</label><select id="memImportance"><option value="1">1 · ต่ำ</option><option value="2">2</option><option value="3" selected>3 · ปกติ</option><option value="4">4</option><option value="5">5 · สูงมาก</option></select></div>
+          <div class="form-field full"><label>แท็ก</label><input id="memTags" placeholder="คั่นด้วยเครื่องหมายจุลภาค เช่น งาน, เป้าหมาย, เรียนรู้"></div>
+          <div class="form-field full"><label class="check-row"><input type="checkbox" id="memPinned"> ปักหมุดเป็นความทรงจำสำคัญ</label></div>
+        </div>
+        <div class="form-actions">
+          <div class="pill" id="btnMemoryCancel">ยกเลิก</div>
+          <div class="pill on" id="btnMemorySave">บันทึกความทรงจำ</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="memory-modal-backdrop" id="authModal">
+      <div class="memory-modal" style="width:min(420px,100%)">
+        <h2 id="authModalTitle">เข้าสู่ระบบเพื่อซิงค์ความทรงจำ</h2>
+        <div class="sub" id="authModalSub">ความทรงจำจะถูกเก็บไว้กลาง (Supabase) แทน localStorage เครื่องเดียว เปิดจากเครื่องไหนก็เห็นข้อมูลเดียวกัน ไม่ต้องตั้งรหัสผ่าน แค่กรอกอีเมลแล้วกดลิงก์ที่ส่งไปให้</div>
+        <div id="authSignedOutView">
+          <div class="form-field full"><label>อีเมล</label><input id="authEmail" type="email" placeholder="you@example.com"></div>
+          <div class="form-actions" style="justify-content:flex-start;margin-top:12px">
+            <div class="pill on" id="btnSendMagicLink">ส่งลิงก์เข้าสู่ระบบ</div>
+          </div>
+        </div>
+        <div id="authSignedInView" style="display:none">
+          <div class="stat-line" id="authUserEmail" style="margin-bottom:12px"></div>
+          <div class="form-actions" style="justify-content:flex-start;gap:8px">
+            <div class="pill on" id="btnSyncNow">ซิงค์ตอนนี้</div>
+            <div class="pill" id="btnSignOut">ออกจากระบบ</div>
+          </div>
+          <div class="stat-line" id="syncLastAt" style="margin-top:12px;color:var(--text-2)"></div>
+        </div>
+        <div class="form-actions">
+          <div class="pill" id="btnAuthClose">ปิด</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" data-screen="vault">
+      <div class="lock-wrap" id="vaultLocked">
+        <div class="lock-icon">🔒</div>
+        <h1>ห้องลับความจำ</h1>
+        <div class="subtitle">พื้นที่นี้ถูกซ่อนจากมุมมองปกติ ใส่รหัสอะไรก็ได้เพื่อทดลองปลดล็อก (ตัวอย่างนี้ไม่มีการเข้ารหัสจริง)</div>
+        <input class="search" id="vaultCode" placeholder="รหัสผ่าน" maxlength="8">
+        <div class="pill wide" id="btnUnlock">ปลดล็อก</div>
+      </div>
+      <div class="lock-wrap" id="vaultUnlocked" style="display:none">
+        <h1>ห้องลับความจำ</h1>
+        <div class="subtitle">ความทรงจำที่ถูกซ่อนจากมุมมองปกติ</div>
+        <div class="vault-list" id="vaultList"></div>
+      </div>
+    </div>
+
+    <div class="screen" data-screen="chat">
+      <h1>คุยกับม็อบ</h1>
+      <div class="subtitle">ม็อบเชื่อมกับโมเดล Claude จริง และค้นเว็บได้เมื่อคำถามต้องใช้ข้อมูลล่าสุด — ใช้งานได้เมื่อเปิดไฟล์นี้ผ่าน Claude.ai (ถ้าเปิดไฟล์แยกนอกระบบ จะตอบแบบข้อความสำรองแทน)</div>
+      <div class="row">
+        <div class="api-toggle" id="apiToggle">ตั้งค่า API key (สำหรับใช้งานนอก Claude.ai) ▾</div>
+        <div class="pill on" id="btnAutoSaveChat" style="margin-left:auto">บันทึกความทรงจำอัตโนมัติ</div>
+        <div class="pill" id="btnClearChat">ล้างบทสนทนา</div>
+      </div>
+      <div class="api-settings" id="apiSettings" style="display:none">
+        <div class="row">
+          <div class="pill on" id="providerClaude">ใช้ Claude</div>
+          <div class="pill" id="providerGemini">ใช้ Gemini (ฟรี)</div>
+        </div>
+        <input class="search" type="password" id="apiKeyInputClaude" placeholder="Anthropic API key (sk-ant-...) — เว้นว่างได้ถ้าเปิดผ่าน Claude.ai">
+        <input class="search" type="password" id="apiKeyInputGemini" placeholder="Gemini API key (ฟรี จาก aistudio.google.com)" style="display:none">
+        <div class="api-warn">คีย์นี้อยู่ในหน่วยความจำของแท็บนี้เท่านั้น ไม่ถูกบันทึกลงไฟล์ และถูกส่งตรงจากเบราว์เซอร์ของคุณไปยัง API ของผู้ให้บริการที่เลือกเท่านั้น — แต่ถ้าจะแชร์ไฟล์นี้ต่อให้คนอื่น อย่าฝังคีย์ทิ้งไว้ในไฟล์ เพราะใครก็ตามที่เปิดไฟล์และดูซอร์สโค้ดจะเห็นคีย์ได้</div>
+      </div>
+      <div class="chat-layout">
+        <div class="chat-area">
+          <div class="chat-messages" id="chatMessages"></div>
+          <div class="attach-preview" id="attachPreview" style="display:none"></div>
+          <div class="chat-input-row">
+            <input type="file" id="chatFileInput" accept="image/*,.pdf,.docx,.xlsx,.xls" style="display:none">
+            <div class="pill" id="chatAttachBtn" title="แนบรูปภาพ / PDF / Word / Excel">📎</div>
+            <input class="search" id="chatInput" placeholder="พิมพ์ข้อความถึงม็อบ...">
+            <div class="pill send-btn" id="chatSend">ส่ง</div>
+          </div>
+        </div>
+        <div class="chat-hologram-panel">
+          <canvas id="chatBrainCanvas"></canvas>
+          <div class="chat-hologram-status" id="chatHologramStatus">ม็อบพร้อมคุย</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="screen" data-screen="tools">
+      <h1>เครื่องมือ</h1>
+      <div class="subtitle">จัดการข้อมูลความทรงจำของม็อบ</div>
+      <div class="tool-grid">
+        <div class="tool-card" id="toolExport">
+          <div class="tc-title">ส่งออกความทรงจำ (.json)</div>
+          <div class="tc-desc">ดาวน์โหลดก้อนความทรงจำทั้งหมดเป็นไฟล์ JSON</div>
+        </div>
+        <div class="tool-card" id="toolImport">
+          <div class="tc-title">นำเข้าความทรงจำ</div>
+          <div class="tc-desc">อัปโหลดไฟล์ความทรงจำจากภายนอก</div>
+        </div>
+        <div class="tool-card" id="toolRegen">
+          <div class="tc-title">สุ่มข้อมูลตัวอย่างใหม่</div>
+          <div class="tc-desc">สร้างก้อนความจำและเส้นไซแนปส์ตัวอย่างชุดใหม่</div>
+        </div>
+        <div class="tool-card" id="toolResetFilters">
+          <div class="tc-title">ล้างตัวกรองทั้งหมด</div>
+          <div class="tc-desc">คืนค่าตัวกรองในสมองม็อบเป็นค่าเริ่มต้น</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+(function(){
+
+/* ---------- reference data (swap this for your own memory data) ---------- */
+
+const OWNERS = [
+  {id:'sai',     name:'ม็อบ',      color:'#57d9ff', weight:44},
+  {id:'hiroshi', name:'Hiroshi',  color:'#ff6f59', weight:33},
+  {id:'sega',    name:'SEGA',     color:'#8b7cf6', weight:8},
+  {id:'red',     name:'Red',      color:'#ffab40', weight:6},
+  {id:'wonyoung',name:'Wonyoung', color:'#ffd83d', weight:4},
+  {id:'ruby',    name:'Ruby',     color:'#ff5cad', weight:3},
+  {id:'meina',   name:'Meina',    color:'#4ade80', weight:2},
+];
+
+const EMOTIONS = [
+  {id:'calm',    name:'สงบ',   color:'#60a5fa'},
+  {id:'joy',     name:'สุข',    color:'#fbbf24'},
+  {id:'sad',     name:'เศร้า',  color:'#818cf8'},
+  {id:'anger',   name:'โกรธ',  color:'#f87171'},
+  {id:'anxious', name:'กังวล', color:'#c084fc'},
+  {id:'neutral', name:'เฉยๆ',  color:'#94a3b8'},
+];
+
+const REGIONS = [
+  {id:'frontal',     name:'หน้าผาก'},
+  {id:'top',         name:'ข้างบน'},
+  {id:'temporal',    name:'ขมับ'},
+  {id:'occipital',   name:'ท้ายทอย'},
+  {id:'midline',     name:'แนวกลาง'},
+  {id:'subcortical', name:'ใต้เปลือก'},
+  {id:'amygdala',    name:'อะมิกดาลา'},
+];
+const REGION_COLOR = {
+  frontal:'#38bdf8', top:'#a78bfa', temporal:'#fb923c',
+  occipital:'#f472b6', midline:'#34d399', subcortical:'#fbbf24', amygdala:'#f87171'
+};
+const CLUSTER_COLORS = ['#57d9ff','#ff6f59','#8b7cf6','#4ade80','#ffab40','#f472b6','#38bdf8','#fbbf24'];
+
+const TOPIC_POOL = [
+  'บทสนทนาเรื่องงาน','ความทรงจำวัยเด็ก','แผนการเดินทาง','อารมณ์ตอนเช้า','บทเรียนจากความผิดพลาด',
+  'ไอเดียโปรเจกต์ใหม่','ความสัมพันธ์กับเพื่อน','ความฝันเมื่อคืน','ข้อคิดจากหนังสือ','แผนการเงิน',
+  'บทเรียนจากเกม','คำถามเกี่ยวกับตัวเอง','ช่วงเวลาที่ภูมิใจ','ปัญหาที่ยังแก้ไม่ตก','ไอเดียเขียนเรื่องสั้น',
+  'เพลงที่ฟังบ่อย','บันทึกสุขภาพ','แผนวันหยุด','ข้อสังเกตเกี่ยวกับเพื่อน','ความคิดก่อนนอน'
+];
+const EXCERPT_POOL = [
+  'จุดที่น่าสนใจของบทสนทนานี้คือมุมมองที่เปลี่ยนไปหลังจากได้ลองคิดทบทวนอีกครั้ง',
+  'ความทรงจำนี้เชื่อมโยงกับหลายเหตุการณ์ก่อนหน้า และดูเหมือนจะส่งผลต่อการตัดสินใจถัดมา',
+  'มีการพูดถึงความรู้สึกที่ปะปนกันระหว่างความมั่นใจและความไม่แน่ใจในช่วงนั้น',
+  'บันทึกนี้ถูกอ้างอิงซ้ำหลายครั้งในบทสนทนาหลังจากนี้ จึงถูกจัดเป็นก้อนที่เชื่อมโยงหนาแน่น',
+  'เป็นช่วงเวลาสั้น ๆ แต่ถูกทำเครื่องหมายว่ามีน้ำหนักทางอารมณ์สูงกว่าปกติ'
+];
+
+/* ---------- geometry / node generation ---------- */
+
+const RX = 168, RY = 205, RZ = 150;
+const BRAIN_CX = 16;
+const BRAIN_RX = 150;
+const BRAIN_RY = 198;
+const BRAIN_RZ = 136;
+const N_NODES = 420;
+
+function pickWeighted(list){
+  const total = list.reduce((s,o)=>s+o.weight,0);
+  let r = Math.random()*total;
+  for(const o of list){ if((r-=o.weight)<=0) return o; }
+  return list[list.length-1];
+}
+function randomInSphere(){
+  let x,y,z,d;
+  do{ x=Math.random()*2-1; y=Math.random()*2-1; z=Math.random()*2-1; d=x*x+y*y+z*z; }while(d>1||d===0);
+  return {x,y,z};
+}
+function classifyRegion(x,y,z){
+  const rx=x/RX, ry=y/RY, rz=z/RZ;
+  if (Math.abs(rx)<0.16 && Math.abs(rz)<0.22){ return ry<-0.35 ? 'amygdala' : 'midline'; }
+  if (Math.sqrt(rx*rx+rz*rz)<0.32 && ry<0.15) return 'subcortical';
+  if (ry>0.42) return 'top';
+  if (rz>0.32) return 'frontal';
+  if (rz<-0.42) return 'occipital';
+  if (Math.abs(rx)>0.52) return 'temporal';
+  return 'top';
+}
+
+function getWeeklyActivity(){
+  const dayNames = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = [];
+  for(let i=6;i>=0;i--){
+    const dayStart = new Date(startOfToday);
+    dayStart.setDate(dayStart.getDate()-i);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate()+1);
+    const count = activeMemories().filter(m=>{
+      const t = new Date(m.createdAt).getTime();
+      return t>=dayStart.getTime() && t<dayEnd.getTime();
+    }).length;
+    days.push({ label: dayNames[dayStart.getDay()], count });
+  }
+  return days;
+}
+const SECRET_MEMORIES = [
+  {title:'บันทึกลับ #1', excerpt:'ความทรงจำที่ถูกทำเครื่องหมายว่าไม่แสดงในมุมมองปกติ'},
+  {title:'บันทึกลับ #2', excerpt:'เนื้อหาที่ถูกจัดเก็บแยกต่างหากด้วยเหตุผลด้านความเป็นส่วนตัว'},
+  {title:'บันทึกลับ #3', excerpt:'ก้อนความทรงจำที่เชื่อมกับแท็กอ่อนไหวเป็นพิเศษ'},
+];
+const MOB_REPLIES = [
+  'เข้าใจแล้ว เดี๋ยวจำเรื่องนี้ไว้ให้นะ',
+  'น่าสนใจ เล่าต่อได้เลย',
+  'จำได้ละ ก้อนความทรงจำใหม่ถูกสร้างแล้ว',
+  'โอเค ไว้ค่อยกลับมาคุยเรื่องนี้อีกทีนะ',
+  'อืม ฟังดูสำคัญ เดี๋ยวจัดหมวดให้',
+];
+
+let nodes = [], edges = [];
+
+function generateData(){
+  nodes = []; edges = [];
+  for(let i=0;i<N_NODES;i++){
+    const p = randomInSphere();
+    const taper = 1 - 0.35*Math.max(0,-p.y);
+    const x = p.x*RX*taper;
+    const y = p.y*RY;
+    const z = p.z*RZ*taper*(p.z>0?1.05:0.9);
+    const region = classifyRegion(x,y,z);
+    const owner = pickWeighted(OWNERS);
+    const emotion = EMOTIONS[Math.floor(Math.random()*EMOTIONS.length)];
+    const cluster = Math.floor(Math.random()*CLUSTER_COLORS.length);
+    const topic = TOPIC_POOL[Math.floor(Math.random()*TOPIC_POOL.length)];
+    nodes.push({
+      id:i, x,y,z, region, ownerId:owner.id, emotionId:emotion.id, cluster,
+      label: topic + ' #' + (100+i),
+      excerpt: EXCERPT_POOL[Math.floor(Math.random()*EXCERPT_POOL.length)],
+      degree:0, isToc:false, isSelfAxis:false
+    });
+  }
+  // nearest-neighbour edges
+  const seen = new Set();
+  for(let i=0;i<nodes.length;i++){
+    const a = nodes[i];
+    const dists = [];
+    for(let j=0;j<nodes.length;j++){
+      if(i===j) continue;
+      const b = nodes[j];
+      const dx=a.x-b.x, dy=a.y-b.y, dz=a.z-b.z;
+      dists.push([j, dx*dx+dy*dy+dz*dz]);
+    }
+    dists.sort((p,q)=>p[1]-q[1]);
+    const k = 2 + Math.floor(Math.random()*2);
+    for(let n=0;n<k;n++){
+      const j = dists[n][0];
+      const key = Math.min(i,j)+'_'+Math.max(i,j);
+      if(!seen.has(key)){ seen.add(key); edges.push([i,j]); }
+    }
+  }
+  // sprinkle long-range cross-brain links
+  for(let i=0;i<Math.floor(N_NODES*0.18);i++){
+    const a = Math.floor(Math.random()*nodes.length);
+    const b = Math.floor(Math.random()*nodes.length);
+    if(a===b) continue;
+    const key = Math.min(a,b)+'_'+Math.max(a,b);
+    if(!seen.has(key)){ seen.add(key); edges.push([a,b]); }
+  }
+  edges.forEach(([a,b])=>{ nodes[a].degree++; nodes[b].degree++; });
+  const degrees = nodes.map(n=>n.degree).sort((a,b)=>a-b);
+  const tocThreshold = degrees[Math.floor(degrees.length*0.95)];
+  nodes.forEach(n=>{
+    n.isToc = n.degree >= tocThreshold && n.degree>0;
+    n.isSelfAxis = n.ownerId==='sai' && n.region==='midline';
+  });
+}
+generateData();
+
+/* galaxy background + anatomical brain scaffold */
+function buildShell(){
+  const paths=[];
+  const seg=44;
+  const latCount=16;
+  for(const side of [-1,1]){
+    // latitude contours
+    for(let li=0;li<latCount;li++){
+      const v=-0.92+(1.84*li)/(latCount-1);
+      const path=[];
+      const rr=Math.sqrt(Math.max(0,1-v*v));
+      const taper=1-0.14*Math.max(0,-v);
+      for(let s=0;s<=seg;s++){
+        const t=-Math.PI/2 + (Math.PI*s/seg);
+        const wobble=1+0.035*Math.sin(t*7+v*10+(side>0?0.9:2.4));
+        const x=side*(BRAIN_CX+BRAIN_RX*Math.cos(t)*rr*taper*wobble);
+        const y=v*BRAIN_RY;
+        const z=Math.sin(t)*BRAIN_RZ*rr*taper*(1+0.06*Math.max(0,Math.sin(t)));
+        path.push({x,y,z});
+      }
+      paths.push(path);
+    }
+    // longitude / sulci-like contours
+    const longCount=12;
+    for(let li=0;li<longCount;li++){
+      const t=-Math.PI/2 + (Math.PI*(li+0.5))/longCount;
+      const path=[];
+      for(let s=0;s<=40;s++){
+        const v=-0.94+(1.88*s/40);
+        const rr=Math.sqrt(Math.max(0,1-v*v));
+        const taper=1-0.14*Math.max(0,-v);
+        const wobble=1+0.05*Math.sin(v*15+t*9+(side>0?1:0));
+        path.push({
+          x:side*(BRAIN_CX+BRAIN_RX*Math.cos(t)*rr*taper*wobble),
+          y:v*BRAIN_RY,
+          z:Math.sin(t)*BRAIN_RZ*rr*taper*wobble
+        });
+      }
+      paths.push(path);
+    }
+  }
+  return paths;
+}
+const shellRings=buildShell();
+
+function buildSulci(){
+  const lines=[];
+  for(const side of [-1,1]){
+    for(let i=0;i<11;i++){
+      const yy=-145+i*28;
+      const path=[];
+      for(let s=0;s<=28;s++){
+        const u=s/28;
+        const ang=(u-0.5)*Math.PI;
+        const y=yy+24*Math.sin(ang*2.1+i*.8);
+        const rr=Math.sqrt(Math.max(0,1-Math.pow(y/BRAIN_RY,2)));
+        const x=side*(BRAIN_CX+80+36*Math.cos(ang+i*.35)*rr);
+        const z=92*Math.sin(ang+i*.55)*rr;
+        path.push({x,y,z});
+      }
+      lines.push(path);
+    }
+  }
+  // a few deep medial grooves
+  for(const side of [-1,1]){
+    for(let i=0;i<4;i++){
+      const path=[];
+      for(let s=0;s<=32;s++){
+        const u=s/32, y=-150+300*u;
+        path.push({
+          x:side*(BRAIN_CX+30+10*Math.sin(u*Math.PI*5+i)),
+          y,
+          z:18+80*Math.cos((u-.5)*Math.PI)*(0.85+0.06*i)
+        });
+      }
+      lines.push(path);
+    }
+  }
+  return lines;
+}
+const sulciPaths=buildSulci();
+
+function buildDust(count){
+  const pts=[];
+  for(let i=0;i<count;i++){
+    const rnd = seededRandom(hashSeed('dust:'+i));
+    let sx=rnd()*2-1, sy=rnd()*2-1, sz=rnd()*2-1;
+    const d=sx*sx+sy*sy+sz*sz;
+    if(d>1){ const n=Math.sqrt(d)||1; sx/=n; sy/=n; sz/=n; }
+    const side = sx<0?-1:1;
+    const radiusFactor = 0.18 + 0.86*Math.pow(rnd(),0.55); // bias toward the outer shell, but still fills the interior
+    const lowerTaper=1-0.16*Math.max(0,-sy);
+    const frontalBulge=1+0.10*Math.max(0,sz);
+    const x=side*(BRAIN_CX+Math.abs(sx)*BRAIN_RX*lowerTaper*radiusFactor);
+    const y=sy*BRAIN_RY*radiusFactor;
+    const z=sz*BRAIN_RZ*lowerTaper*frontalBulge*radiusFactor;
+    pts.push({x,y,z,phase:(i*1.618)%6.283,speed:0.5+(i%11)/12});
+  }
+  return pts;
+}
+const DUST_BASE=350, DUST_PER_MEMORY=45, DUST_MAX=6000;
+let dust=buildDust(DUST_BASE);
+function rebuildDust(){
+  const count=Math.min(DUST_MAX, DUST_BASE + activeMemories().length*DUST_PER_MEMORY);
+  dust=buildDust(count);
+}
+
+let hubRays = [];
+function buildHubRays(realCount){
+  hubRays = [];
+  if(realCount<1) return;
+  const hubs = nodes.slice(0,realCount).slice().sort((a,b)=>(b.degree+b.importance)-(a.degree+a.importance)).slice(0, Math.min(14, realCount));
+  hubs.forEach(hub=>{
+    const pool = dust.map((d,di)=>{
+      const dx=d.x-hub.x, dy=d.y-hub.y, dz=d.z-hub.z;
+      return { di, dist:dx*dx+dy*dy+dz*dz };
+    }).sort((a,b)=>a.dist-b.dist).slice(0,140);
+    const rayCount = Math.min(pool.length, 10 + (hub.importance||3)*3 + Math.min(10,hub.degree));
+    for(let k=0;k<rayCount;k++){
+      const idx = pool[Math.floor(k*pool.length/rayCount)].di;
+      hubRays.push({ hx:hub.x, hy:hub.y, hz:hub.z, dx:dust[idx].x, dy:dust[idx].y, dz:dust[idx].z });
+    }
+  });
+}
+
+function buildStars(){
+  const stars=[];
+  for(let i=0;i<380;i++){
+    const rnd = seededRandom(hashSeed('galaxy-star:'+i));
+    stars.push({
+      x: rnd(),
+      y: rnd(),
+      r: 0.3 + rnd()*0.45,
+      a: 0.1 + rnd()*0.35,
+      hue: Math.floor(rnd()*7)
+    });
+  }
+  return stars;
+}
+const galaxyStars=buildStars();
+
+/* region label centroids */
+let regionCentroids = [];
+function computeRegionCentroids(){
+  regionCentroids = REGIONS.map(r=>{
+    const pts = nodes.filter(n=>n.region===r.id);
+    const cx = pts.reduce((s,n)=>s+n.x,0)/(pts.length||1);
+    const cy = pts.reduce((s,n)=>s+n.y,0)/(pts.length||1);
+    const cz = pts.reduce((s,n)=>s+n.z,0)/(pts.length||1);
+    return {id:r.id, name:r.name, count:pts.length, x:cx*1.18, y:cy*1.18, z:cz*1.18};
+  });
+}
+computeRegionCentroids();
+
+/* ---------- state ---------- */
+
+const state = {
+  yaw:0.5, pitch:-0.15, zoom:1, panX:0, panY:0,
+  autoRotate:true, mode2D:false,
+  colorBy:'owner',
+  visibleOwners: new Set(OWNERS.map(o=>o.id)),
+  onlyEdged:true, hideToc:false, onlySelfAxis:false,
+  showCortex:true, showSynapse:true, showLabels:true, showDust:true,
+  search:'', selected:null,
+  dragging:false, panning:false, lastX:0, lastY:0
+};
+
+/* ---------- canvas setup ---------- */
+
+const canvas = document.getElementById('scene');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+const mini = document.getElementById('minimap');
+const mctx = mini.getContext('2d');
+let W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+
+function resize(){
+  W = wrap.clientWidth; H = wrap.clientHeight;
+  canvas.width = W*DPR; canvas.height = H*DPR;
+  canvas.style.width = W+'px'; canvas.style.height=H+'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  mini.width = mini.clientWidth*DPR; mini.height = mini.clientHeight*DPR;
+  mctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ---------- projection ---------- */
+
+function project(p, yaw, pitch, zoom, cx, cy, panX, panY){
+  let x=p.x, y=p.y, z=p.z;
+  // yaw (around Y)
+  let x1 = x*Math.cos(yaw) + z*Math.sin(yaw);
+  let z1 = -x*Math.sin(yaw) + z*Math.cos(yaw);
+  // pitch (around X)
+  let y2 = y*Math.cos(pitch) - z1*Math.sin(pitch);
+  let z2 = y*Math.sin(pitch) + z1*Math.cos(pitch);
+  const d = 720;
+  const scale = (d/(d+z2)) * zoom;
+  return { sx: cx + panX + x1*scale, sy: cy + panY + y2*scale, scale, depth:z2 };
+}
+
+function project2D(p, zoom, cx, cy, panX, panY){
+  return { sx: cx+panX+p.x*zoom*0.9, sy: cy+panY-p.y*zoom*0.9, scale:zoom*0.9, depth:0 };
+}
+
+/* ---------- colour resolution ---------- */
+
+const ownerById = Object.fromEntries(OWNERS.map(o=>[o.id,o]));
+const emotionById = Object.fromEntries(EMOTIONS.map(e=>[e.id,e]));
+
+/* ---------- Memory Engine (local-first) ---------- */
+const MEMORY_STORAGE_KEY = 'mob_memory_engine_v2';
+let memoryRecords = [];
+let editingMemoryId = null;
+let memoryViewFilter = 'all';
+let memorySort = 'recent';
+
+function makeId(){ return 'mem_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8); }
+function normalizeTags(v){
+  if(Array.isArray(v)) return [...new Set(v.map(x=>String(x).trim().toLowerCase()).filter(Boolean))].slice(0,20);
+  return [...new Set(String(v||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean))].slice(0,20);
+}
+function normalizeMemory(m){
+  const now=new Date().toISOString();
+  return {
+    id:m.id||makeId(), title:String(m.title||m.label||'ความทรงจำไม่มีชื่อ').trim().slice(0,140),
+    content:String(m.content||m.excerpt||'').trim(), ownerId:ownerById[m.ownerId||m.owner]? (m.ownerId||m.owner):OWNERS[0].id,
+    emotionId:emotionById[m.emotionId||m.emotion]? (m.emotionId||m.emotion):EMOTIONS[0].id,
+    region:REGIONS.some(r=>r.id===m.region)?m.region:REGIONS[1].id,
+    tags:normalizeTags(m.tags), importance:Math.max(1,Math.min(5,Number(m.importance)||3)), pinned:!!m.pinned, archived:!!m.archived,
+    createdAt:m.createdAt||now, updatedAt:m.updatedAt||m.createdAt||now, accessCount:Number(m.accessCount)||0,
+    deletedAt:m.deletedAt||null
+  };
+}
+function activeMemories(){ return memoryRecords.filter(m=>!m.deletedAt); }
+function saveMemoryStore(){
+  try{localStorage.setItem(MEMORY_STORAGE_KEY,JSON.stringify(memoryRecords));return true;}catch(e){console.warn('Memory store save failed',e);return false;}
+}
+function loadMemoryStore(){
+  try{const raw=localStorage.getItem(MEMORY_STORAGE_KEY);if(!raw)return false;const arr=JSON.parse(raw);if(!Array.isArray(arr))return false;memoryRecords=arr.map(normalizeMemory);return memoryRecords.length>0;}catch(e){console.warn('Memory store load failed',e);return false;}
+}
+function seedMemoryStore(){
+  const source=nodes.slice(0,36);
+  memoryRecords=source.map((n,i)=>normalizeMemory({id:'seed_'+i,title:n.label,content:n.excerpt,ownerId:n.ownerId,emotionId:n.emotionId,region:n.region,tags:[TOPIC_POOL[i%TOPIC_POOL.length]],importance:(i%5)+1,pinned:i<3,createdAt:new Date(Date.now()-i*86400000).toISOString(),updatedAt:new Date(Date.now()-i*3600000).toISOString()}));
+  saveMemoryStore();
+}
+function memorySearchScore(m,query){
+  const q=String(query||'').trim().toLowerCase(); if(!q)return 0;
+  const terms=q.split(/\s+/).filter(Boolean); let score=0;
+  terms.forEach(t=>{if(m.title.toLowerCase().includes(t))score+=6;if(m.tags.some(x=>x.includes(t)))score+=5;if(m.content.toLowerCase().includes(t))score+=2;});
+  score+=m.importance*0.15+(m.pinned?0.5:0); return score;
+}
+function retrieveMemories(query,limit=5){
+  return activeMemories().filter(m=>!m.archived).map(m=>({m,score:memorySearchScore(m,query)})).filter(x=>!String(query||'').trim()||x.score>0).sort((a,b)=>b.score-a.score||new Date(b.m.updatedAt)-new Date(a.m.updatedAt)).slice(0,limit).map(x=>x.m);
+}
+function hashSeed(text){
+  let h=2166136261>>>0;
+  for(let i=0;i<String(text).length;i++){h^=String(text).charCodeAt(i);h=Math.imul(h,16777619);}
+  return h>>>0;
+}
+function seededRandom(seed){
+  let a=seed>>>0;
+  return function(){
+    a += 0x6D2B79F5;
+    let t=a;
+    t=Math.imul(t^t>>>15,t|1);
+    t ^= t + Math.imul(t^t>>>7,t|61);
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+function seededBrainPoint(seed){
+  const r=seededRandom(hashSeed(seed));
+  let x,y,z,d,side;
+  for(let tries=0;tries<60;tries++){
+    let sx=r()*2-1, sy=r()*2-1, sz=r()*2-1;
+    d=sx*sx+sy*sy+sz*sz;
+    if(d===0||d>1) continue;
+    side=r()<0.5?-1:1;
+    const lowerTaper=1-0.16*Math.max(0,-sy);
+    const frontalBulge=1+0.10*Math.max(0,sz);
+    x=side*(BRAIN_CX+Math.abs(sx)*BRAIN_RX*lowerTaper);
+    y=sy*BRAIN_RY;
+    z=sz*BRAIN_RZ*lowerTaper*frontalBulge;
+    if(Math.abs(x)<BRAIN_CX+3) continue;
+    if(Math.abs(y)>BRAIN_RY*0.96) continue;
+    return {x,y,z};
+  }
+  return {x:(side||1)*(BRAIN_CX+40),y:0,z:0};
+}
+function buildMemoryNodes(){
+  nodes=[];
+  const liveMemories=activeMemories();
+  const visualAnchors=Math.max(50,Math.min(600,liveMemories.length*5));
+  liveMemories.forEach((m,i)=>{
+    const p=seededBrainPoint(m.id||('mem-'+i));
+    nodes.push({
+      id:i,x:p.x,y:p.y,z:p.z,region:m.region,ownerId:m.ownerId,emotionId:m.emotionId,
+      cluster:i%CLUSTER_COLORS.length,label:m.title,excerpt:m.content,degree:0,isToc:false,
+      isSelfAxis:m.ownerId==='sai'&&m.region==='midline',memoryId:m.id,
+      importance:m.importance,pinned:m.pinned,archived:m.archived,tags:m.tags||[]
+    });
+  });
+  const realCount=nodes.length;
+  for(let i=realCount;i<visualAnchors;i++){
+    const p=seededBrainPoint('anchor:'+i);
+    const o=OWNERS[i%OWNERS.length],e=EMOTIONS[i%EMOTIONS.length],r=REGIONS[i%REGIONS.length];
+    nodes.push({
+      id:i,x:p.x,y:p.y,z:p.z,region:r.id,ownerId:o.id,emotionId:e.id,cluster:i%CLUSTER_COLORS.length,
+      label:'anchor_'+i,excerpt:'',degree:0,isToc:false,isSelfAxis:false,virtual:true,importance:1,pinned:false
+    });
+  }
+
+  edges=[];
+  const seen=new Set();
+  // Memory-to-memory connections: semantic-ish similarity from metadata.
+  for(let i=0;i<realCount;i++) for(let j=i+1;j<realCount;j++){
+    const a=liveMemories[i],b=liveMemories[j];
+    const shared=a.tags.filter(t=>b.tags.includes(t)).length;
+    const score=shared*4+(a.ownerId===b.ownerId?1.2:0)+(a.emotionId===b.emotionId?0.8:0)+(a.region===b.region?0.9:0);
+    if(shared>0 || score>=2.1){
+      const key=i+'_'+j;
+      if(!seen.has(key)){seen.add(key);edges.push([i,j,Math.min(1,score/7),score>=4]);}
+    }
+  }
+  // A sparse atmospheric layer of long-range neural strands.
+  for(let i=0;i<realCount;i++){
+    for(let k=0;k<2;k++){
+      if(visualAnchors-realCount<=0) continue;
+      const j=realCount+((i*5+k*7)%Math.max(1,visualAnchors-realCount));
+      if(j<nodes.length){
+        const key=Math.min(i,j)+'_'+Math.max(i,j);
+        if(!seen.has(key)){seen.add(key);edges.push([i,j,0.13,false]);}
+      }
+    }
+  }
+  edges.forEach(([a,b])=>{nodes[a].degree++;nodes[b].degree++;});
+  const deg=nodes.slice(0,realCount).map(n=>n.degree).sort((a,b)=>a-b);
+  const th=deg.length?deg[Math.floor(deg.length*.95)]:1;
+  nodes.forEach(n=>{n.isToc=n.degree>=th&&n.degree>0;});
+  buildHubRays(realCount);
+}
+
+function refreshMemoryRuntime(){
+  rebuildDust(); buildMemoryNodes(); computeRegionCentroids();
+  document.getElementById('statNodes').textContent=activeMemories().length.toLocaleString(); document.getElementById('statEdges').textContent=edges.length.toLocaleString();
+  document.querySelectorAll('#ownerGroup .pill').forEach((pill,idx)=>{const c=pill.querySelector('.count');if(c)c.textContent=activeMemories().filter(m=>m.ownerId===OWNERS[idx].id).length;});
+  drawMinimap(); renderMemoryList();
+}
+function initMemoryStore(){if(!loadMemoryStore())seedMemoryStore();refreshMemoryRuntime();}
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+function setMemoryFilterPills(){document.getElementById('memoryFilterAll').classList.toggle('on',memoryViewFilter==='all');document.getElementById('memoryFilterPinned').classList.toggle('on',memoryViewFilter==='pinned');document.getElementById('memoryFilterArchived').classList.toggle('on',memoryViewFilter==='archived');}
+function setMemorySortPills(){document.getElementById('memorySortRecent').classList.toggle('on',memorySort==='recent');document.getElementById('memorySortImportant').classList.toggle('on',memorySort==='important');}
+function openMemoryEditor(id=null, prefill=null){editingMemoryId=id;const m=id?memoryRecords.find(x=>x.id===id):null;document.getElementById('memoryModalTitle').textContent=m?'แก้ไขความทรงจำ':'เพิ่มความทรงจำ';document.getElementById('memTitle').value=m?.title||prefill?.title||'';document.getElementById('memContent').value=m?.content||prefill?.content||'';document.getElementById('memOwner').value=m?.ownerId||'sai';document.getElementById('memEmotion').value=m?.emotionId||'neutral';document.getElementById('memRegion').value=m?.region||'top';document.getElementById('memImportance').value=String(m?.importance||3);document.getElementById('memTags').value=(m?.tags||prefill?.tags||[]).join(', ');document.getElementById('memPinned').checked=!!m?.pinned;document.getElementById('memoryModal').classList.add('show');setTimeout(()=>document.getElementById('memTitle').focus(),20);}
+function closeMemoryEditor(){document.getElementById('memoryModal').classList.remove('show');editingMemoryId=null;}
+function saveMemoryFromForm(){
+  const title=document.getElementById('memTitle').value.trim(),content=document.getElementById('memContent').value.trim(); if(!title||!content){showToast('กรุณาใส่ชื่อและเนื้อหาความทรงจำ');return;}
+  const now=new Date().toISOString(),payload={title,content,ownerId:document.getElementById('memOwner').value,emotionId:document.getElementById('memEmotion').value,region:document.getElementById('memRegion').value,importance:Number(document.getElementById('memImportance').value),tags:normalizeTags(document.getElementById('memTags').value),pinned:document.getElementById('memPinned').checked};
+  const wasEditing=!!editingMemoryId;
+  if(wasEditing){const i=memoryRecords.findIndex(m=>m.id===editingMemoryId);if(i>=0)memoryRecords[i]=normalizeMemory({...memoryRecords[i],...payload,updatedAt:now});}
+  else memoryRecords.unshift(normalizeMemory({...payload,id:makeId(),createdAt:now,updatedAt:now,accessCount:0}));
+  saveMemoryStore();closeMemoryEditor();refreshMemoryRuntime();showToast(wasEditing?'อัปเดตความทรงจำแล้ว':'บันทึกความทรงจำแล้ว');
+}
+function deleteMemory(id){const m=memoryRecords.find(x=>x.id===id);if(!m)return;if(!confirm('ลบความทรงจำนี้หรือไม่?'))return;m.deletedAt=new Date().toISOString();m.updatedAt=m.deletedAt;saveMemoryStore();refreshMemoryRuntime();closeDetail();showToast('ลบความทรงจำแล้ว');if(authSession)syncNow();}
+function toggleMemoryFlag(id,key){const m=memoryRecords.find(x=>x.id===id);if(!m)return;m[key]=!m[key];m.updatedAt=new Date().toISOString();saveMemoryStore();refreshMemoryRuntime();}
+function selectMemoryRecord(id){const idx=nodes.findIndex(n=>n.memoryId===id);if(idx>=0){selectNode(idx);switchScreen('brain');}}
+function renderMemoryList(){
+  const term=document.getElementById('memorySearch').value.trim().toLowerCase(); let filtered=activeMemories().filter(m=>(memoryViewFilter==='all'||(memoryViewFilter==='pinned'&&m.pinned)||(memoryViewFilter==='archived'&&m.archived)) && (!term||memorySearchScore(m,term)>0));
+  filtered.sort((a,b)=>memorySort==='important'?(b.importance-a.importance)||(Number(b.pinned)-Number(a.pinned))||(new Date(b.updatedAt)-new Date(a.updatedAt)):(new Date(b.updatedAt)-new Date(a.updatedAt)));
+  document.getElementById('memoryStats').innerHTML='<div class="mini-stat"><b>'+activeMemories().length+'</b> ความทรงจำ</div><div class="mini-stat"><b>'+activeMemories().filter(m=>m.pinned).length+'</b> ปักหมุด</div><div class="mini-stat"><b>'+activeMemories().filter(m=>m.archived).length+'</b> เก็บถาวร</div><div class="mini-stat"><b>'+activeMemories().filter(m=>m.importance>=4).length+'</b> ความสำคัญสูง</div>';
+  const list=document.getElementById('memoryList');list.innerHTML='';if(!filtered.length){list.innerHTML='<div class="memory-empty">ไม่พบความทรงจำที่ตรงกับตัวกรองนี้</div>';return;}
+  filtered.forEach(m=>{const owner=ownerById[m.ownerId],emo=emotionById[m.emotionId],reg=REGIONS.find(r=>r.id===m.region),item=document.createElement('div');item.className='memory-item';const excerpt=m.content.length>220?m.content.slice(0,220)+'…':m.content;item.innerHTML='<div class="mi-actions"><button class="mi-action" data-action="pin">'+(m.pinned?'เลิกปักหมุด':'ปักหมุด')+'</button><button class="mi-action" data-action="archive">'+(m.archived?'คืนจากถาวร':'เก็บถาวร')+'</button><button class="mi-action" data-action="edit">แก้ไข</button><button class="mi-action" data-action="delete">ลบ</button></div><div class="mi-top"><span class="mi-dot" style="background:'+owner.color+'"></span><span class="mi-title">'+escapeHtml(m.title)+'</span></div><div class="mi-badges"><span class="badge" style="color:'+owner.color+'">'+escapeHtml(owner.name)+'</span><span class="badge">'+escapeHtml(reg.name)+'</span><span class="badge" style="color:'+emo.color+'">'+escapeHtml(emo.name)+'</span>'+(m.archived?'<span class="badge">เก็บถาวร</span>':'')+'</div><div class="mi-content">'+escapeHtml(excerpt)+'</div><div class="mi-tags">'+m.tags.map(t=>'<span class="tag">#'+escapeHtml(t)+'</span>').join('')+'</div><div class="importance">ความสำคัญ '+('★'.repeat(m.importance)+'☆'.repeat(5-m.importance))+' · อัปเดต '+new Date(m.updatedAt).toLocaleString('th-TH')+'</div>';
+    item.addEventListener('click',e=>{const btn=e.target.closest('[data-action]');if(btn){e.stopPropagation();const a=btn.dataset.action;if(a==='pin')toggleMemoryFlag(m.id,'pinned');else if(a==='archive')toggleMemoryFlag(m.id,'archived');else if(a==='edit')openMemoryEditor(m.id);else deleteMemory(m.id);return;}m.accessCount++;saveMemoryStore();selectMemoryRecord(m.id);});list.appendChild(item);});
+}
+
+function populateMemoryFormOptions(){
+  const owner=document.getElementById('memOwner'),emo=document.getElementById('memEmotion'),reg=document.getElementById('memRegion');
+  owner.innerHTML=OWNERS.map(o=>'<option value="'+o.id+'">'+escapeHtml(o.name)+'</option>').join('');
+  emo.innerHTML=EMOTIONS.map(e=>'<option value="'+e.id+'">'+escapeHtml(e.name)+'</option>').join('');
+  reg.innerHTML=REGIONS.map(r=>'<option value="'+r.id+'">'+escapeHtml(r.name)+'</option>').join('');
+}
+populateMemoryFormOptions();
+
+function nodeColor(n){
+  if(state.colorBy==='owner') return ownerById[n.ownerId].color;
+  if(state.colorBy==='emotion') return emotionById[n.emotionId].color;
+  if(state.colorBy==='region') return REGION_COLOR[n.region];
+  if(state.colorBy==='cluster') return CLUSTER_COLORS[n.cluster];
+  return '#57d9ff';
+}
+
+function nodeVisible(n){
+  if(!state.visibleOwners.has(n.ownerId)) return false;
+  if(state.onlySelfAxis && !n.isSelfAxis) return false;
+  if(n.virtual) return true; // decorative anchor star: skip content-only filters below
+  if(state.onlyEdged && n.degree===0) return false;
+  if(state.hideToc && n.isToc) return false;
+  return true;
+}
+
+/* ---------- render loop ---------- */
+
+let lastT = performance.now();
+
+function drawGalaxyBackground(t){
+  ctx.clearRect(0,0,W,H);
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#000205'); bg.addColorStop(.55,'#000103'); bg.addColorStop(1,'#000000');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  const neb=ctx.createRadialGradient(W*.52,H*.48,10,W*.52,H*.48,Math.max(W,H)*.5);
+  neb.addColorStop(0,'rgba(26,71,114,.055)');
+  neb.addColorStop(.34,'rgba(36,52,106,.03)');
+  neb.addColorStop(.72,'rgba(10,18,38,.01)');
+  neb.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=neb; ctx.fillRect(0,0,W,H);
+
+  const t2=t*.00004;
+  galaxyStars.forEach((s,i)=>{
+    const x=((s.x + t2*(0.015 + (i%5)*0.002))%1)*W;
+    const y=((s.y + t2*(0.01 + (i%3)*0.0015))%1)*H;
+    const tw=0.58+0.42*Math.sin(t*.0012*s.speed+s.phase);
+    ctx.globalAlpha=s.a*tw*0.4;
+    ctx.fillStyle=i%9===0?'#bfefff':'#e8f8ff';
+    ctx.beginPath();ctx.arc(x,y,s.r,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // Subtle nebula filaments behind the brain.
+  ctx.save();
+  ctx.globalCompositeOperation='screen';
+  for(let i=0;i<7;i++){
+    const y=H*(.22+i*.10);
+    const g=ctx.createLinearGradient(W*.15,y,W*.85,y+30);
+    g.addColorStop(0,'rgba(56,119,199,0)');
+    g.addColorStop(.5,'rgba(70,126,255,.01)');
+    g.addColorStop(1,'rgba(137,95,255,0)');
+    ctx.strokeStyle=g;ctx.lineWidth=18;
+    ctx.beginPath();
+    ctx.moveTo(W*.08,y);
+    ctx.bezierCurveTo(W*.3,y-35,W*.68,y+55,W*.92,y-20);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Vignette: dims the outer field so the brain at center reads as the clear focal point.
+  const vig=ctx.createRadialGradient(W*.5,H*.46,Math.min(W,H)*.14,W*.5,H*.46,Math.max(W,H)*.6);
+  vig.addColorStop(0,'rgba(0,0,0,0)');
+  vig.addColorStop(.55,'rgba(0,0,0,.28)');
+  vig.addColorStop(1,'rgba(0,0,0,.78)');
+  ctx.fillStyle=vig; ctx.fillRect(0,0,W,H);
+}
+
+function drawPath(path, projectFn, alpha, width, glow){
+  if(!path.length)return;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  ctx.strokeStyle='rgba(104,216,255,1)';
+  ctx.lineWidth=width;
+  if(glow){ctx.shadowColor='rgba(77,194,255,.75)';ctx.shadowBlur=glow;}
+  ctx.beginPath();
+  path.forEach((pt,i)=>{const p=projectFn(pt);if(i===0)ctx.moveTo(p.sx,p.sy);else ctx.lineTo(p.sx,p.sy);});
+  ctx.stroke();
+  ctx.restore();
+}
+
+function render(t){
+  const dt=(t-lastT)/1000; lastT=t;
+  if(state.autoRotate&&!state.dragging&&!state.mode2D)state.yaw+=dt*0.055;
+
+  drawGalaxyBackground(t);
+  const cx=W/2,cy=H/2+8;
+  const proj=state.mode2D
+    ? (p)=>project2D(p,state.zoom,cx,cy,state.panX,state.panY)
+    : (p)=>project(p,state.yaw,state.pitch,state.zoom,cx,cy,state.panX,state.panY);
+
+  // Anatomical shell — kept very faint now; the dense dust field carries the silhouette instead.
+  if(state.showCortex){
+    shellRings.forEach((path,i)=>drawPath(path,proj,0.11+(i%7===0?0.06:0),0.75,2));
+    sulciPaths.forEach((path,i)=>drawPath(path,proj,0.055+(i%3===0?0.035:0),0.6,0));
+  }
+
+  // Stardust filling the whole brain volume.
+  if(state.showDust){
+    dust.forEach((p,i)=>{
+      const pr=proj(p);
+      const tw=.35+.65*Math.sin(t*.001*p.speed+p.phase);
+      ctx.globalAlpha=.055+.11*tw;
+      ctx.fillStyle=i%13===0?'#d9f8ff':'#78cfff';
+      ctx.beginPath();ctx.arc(pr.sx,pr.sy,0.5+(i%3)*.15,0,Math.PI*2);ctx.fill();
+    });
+    ctx.globalAlpha=1;
+  }
+
+  // Hub rays: thin light-strands fanning out from key memories, like the reference photo.
+  if(state.showSynapse && hubRays.length){
+    hubRays.forEach(r=>{
+      const pa=proj({x:r.hx,y:r.hy,z:r.hz});
+      const pb=proj({x:r.dx,y:r.dy,z:r.dz});
+      const g=ctx.createLinearGradient(pa.sx,pa.sy,pb.sx,pb.sy);
+      g.addColorStop(0,'rgba(190,225,255,.14)');
+      g.addColorStop(1,'rgba(190,225,255,0)');
+      ctx.strokeStyle=g;
+      ctx.lineWidth=0.6;
+      ctx.beginPath();
+      ctx.moveTo(pa.sx,pa.sy); ctx.lineTo(pb.sx,pb.sy);
+      ctx.stroke();
+    });
+  }
+
+  // Medial fissure: the dark divide that makes the silhouette read as a human brain.
+  if(state.showCortex){
+    const fissure=[];
+    for(let i=0;i<=40;i++){
+      const u=i/40;
+      fissure.push({x:0,y:-BRAIN_RY*.87+u*BRAIN_RY*1.74,z:26+26*Math.sin(u*Math.PI)});
+    }
+    drawPath(fissure,proj,0.28,1.6,10);
+  }
+
+  const projected=nodes.map(n=>({n,p:proj(n)}));
+
+  if(state.showSynapse){
+    edges.forEach(([ai,bi,strength=0.14,strong=false])=>{
+      const a=nodes[ai],b=nodes[bi];
+      if(!nodeVisible(a)||!nodeVisible(b))return;
+      const pa=projected[ai].p,pb=projected[bi].p;
+      const selectedEdge=state.selected!==null&&(ai===state.selected||bi===state.selected);
+      const near=Math.min(a.degree,b.degree);
+      const base=Math.min(.34,.055+strength*.16+(near>8?.025:0));
+      const alpha=selectedEdge?.82:base;
+      const dx=pb.sx-pa.sx,dy=pb.sy-pa.sy,len=Math.max(1,Math.hypot(dx,dy));
+      const nx=-dy/len,ny=dx/len;
+      const bend=((ai*19+bi*7)%23-11)*(selectedEdge?.28:.16);
+      const mx=(pa.sx+pb.sx)/2+nx*bend, my=(pa.sy+pb.sy)/2+ny*bend;
+      ctx.save();
+      ctx.globalAlpha=alpha;
+      ctx.strokeStyle=selectedEdge?'rgba(197,247,255,.95)':'rgba(101,205,255,1)';
+      ctx.lineWidth=selectedEdge?1.25:(strong?.78:.42);
+      if(selectedEdge||strong){ctx.shadowColor='rgba(70,205,255,.8)';ctx.shadowBlur=selectedEdge?10:5;}
+      ctx.beginPath();
+      ctx.moveTo(pa.sx,pa.sy);
+      ctx.quadraticCurveTo(mx,my,pb.sx,pb.sy);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  const drawList=projected.filter(o=>nodeVisible(o.n));
+  drawList.sort((a,b)=>(a.p.depth||0)-(b.p.depth||0));
+  const term=state.search.trim().toLowerCase();
+
+  drawList.forEach(o=>{
+    const n=o.n,p=o.p;
+    const matched=term && (n.label.toLowerCase().includes(term) || (n.tags||[]).some(tag=>tag.includes(term)));
+    const dimmed=term&&!matched;
+    const isSel=state.selected===n.id;
+    const imp=n.importance||3;
+    const baseR=state.mode2D?2.2:Math.max(.95,1.8*p.scale);
+    const r=isSel?baseR*2.4:baseR*(1+Math.max(0,imp-3)*.12);
+    const alpha=dimmed?.08:(state.mode2D?.86:Math.max(.22,Math.min(1,p.scale)));
+    ctx.save();
+    ctx.globalAlpha=alpha;
+    ctx.shadowColor=nodeColor(n);
+    ctx.shadowBlur=isSel?16:(n.pinned?8:(n.isToc?5:2));
+    ctx.fillStyle=nodeColor(n);
+    ctx.beginPath();ctx.arc(p.sx,p.sy,r,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(235,251,255,.95)';
+    ctx.beginPath();ctx.arc(p.sx,p.sy,Math.max(.55,r*.34),0,Math.PI*2);ctx.fill();
+
+    // tiny four-point star for important memories
+    if(imp>=4&&!dimmed){
+      ctx.strokeStyle='rgba(178,239,255,.72)';
+      ctx.lineWidth=.55;
+      const q=r*2.6;
+      ctx.beginPath();ctx.moveTo(p.sx-q,p.sy);ctx.lineTo(p.sx+q,p.sy);ctx.moveTo(p.sx,p.sy-q);ctx.lineTo(p.sx,p.sy+q);ctx.stroke();
+    }
+    ctx.restore();
+
+    if(isSel){
+      ctx.strokeStyle='rgba(235,251,255,.9)';
+      ctx.lineWidth=1.1;
+      ctx.beginPath();ctx.arc(p.sx,p.sy,r+4,0,Math.PI*2);ctx.stroke();
+    }
+  });
+
+  // Sparse constellation-style labels rather than labeling every region.
+  if(state.showLabels){
+    const labelNodes=drawList.filter(o=>state.selected===o.n.id||o.n.pinned||o.n.importance>=5||o.n.isToc).slice(-18);
+    ctx.font='10.5px "Noto Sans Thai",sans-serif';
+    ctx.textAlign='left';
+    labelNodes.forEach(o=>{
+      const p=o.p;
+      const label=o.n.label.length>28?o.n.label.slice(0,28)+'…':o.n.label;
+      const w=ctx.measureText(label).width+12;
+      ctx.fillStyle='rgba(3,9,16,.52)';
+      ctx.fillRect(p.sx+7,p.sy-9,w,17);
+      ctx.fillStyle='rgba(190,226,244,.78)';
+      ctx.fillText(label,p.sx+13,p.sy+3);
+    });
+  }
+
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+/* ---------- chat hologram: a small always-alive brain that reacts while ม็อบ thinks/replies ---------- */
+
+let mobReactionState='idle'; // 'idle' | 'thinking' | 'responding'
+let mobReactionPulse=0;
+function setMobReaction(state){
+  mobReactionState=state;
+  const label=document.getElementById('chatHologramStatus');
+  if(!label) return;
+  label.textContent = state==='thinking' ? 'ม็อบกำลังคิด...' : (state==='responding' ? 'ม็อบตอบแล้ว' : 'ม็อบพร้อมคุย');
+}
+
+const chatBrainCanvas=document.getElementById('chatBrainCanvas');
+const chatBrainCtx=chatBrainCanvas?chatBrainCanvas.getContext('2d'):null;
+let chatBrainYaw=0.5, chatBrainPitch=-0.12, chatBrainW=0, chatBrainH=0;
+
+function renderChatBrain(t){
+  if(!chatBrainCtx){ requestAnimationFrame(renderChatBrain); return; }
+  const cw=chatBrainCanvas.clientWidth, ch=chatBrainCanvas.clientHeight;
+  if(cw>0 && (chatBrainCanvas.width!==Math.round(cw*DPR) || chatBrainCanvas.height!==Math.round(ch*DPR))){
+    chatBrainCanvas.width=Math.round(cw*DPR); chatBrainCanvas.height=Math.round(ch*DPR);
+    chatBrainCtx.setTransform(DPR,0,0,DPR,0,0);
+    chatBrainW=cw; chatBrainH=ch;
+  }
+  if(chatBrainW<=0){ requestAnimationFrame(renderChatBrain); return; }
+
+  const spinSpeed = mobReactionState==='thinking'?0.55:(mobReactionState==='responding'?0.85:0.16);
+  chatBrainYaw += 0.016*spinSpeed;
+
+  // reaction envelope: builds while thinking, spikes on responding, decays back to idle
+  let target = mobReactionState==='thinking' ? 0.45+0.25*Math.sin(t*0.006) : (mobReactionState==='responding'?1:0);
+  mobReactionPulse += (target-mobReactionPulse)*0.08;
+
+  chatBrainCtx.clearRect(0,0,chatBrainW,chatBrainH);
+  const bgGrad=chatBrainCtx.createRadialGradient(chatBrainW*.5,chatBrainH*.46,4,chatBrainW*.5,chatBrainH*.46,Math.max(chatBrainW,chatBrainH)*.6);
+  bgGrad.addColorStop(0,'rgba(20,45,75,'+(0.10+mobReactionPulse*0.10)+')');
+  bgGrad.addColorStop(1,'rgba(0,0,0,0)');
+  chatBrainCtx.fillStyle=bgGrad; chatBrainCtx.fillRect(0,0,chatBrainW,chatBrainH);
+
+  const cx=chatBrainW/2, cy=chatBrainH/2;
+  const zoom=Math.min(chatBrainW,chatBrainH)/380;
+  const proj=(p)=>project(p,chatBrainYaw,chatBrainPitch,zoom,cx,cy,0,0);
+
+  // faint shell (subsampled rings for performance)
+  chatBrainCtx.strokeStyle='rgba(150,180,255,'+(0.08+mobReactionPulse*0.18)+')';
+  chatBrainCtx.lineWidth=0.8;
+  shellRings.forEach((path,i)=>{
+    if(i%2!==0) return;
+    chatBrainCtx.beginPath();
+    path.forEach((p,j)=>{ const pr=proj(p); if(j===0) chatBrainCtx.moveTo(pr.sx,pr.sy); else chatBrainCtx.lineTo(pr.sx,pr.sy); });
+    chatBrainCtx.closePath();
+    chatBrainCtx.stroke();
+  });
+
+  // dust (subsampled for a lighter, decorative field)
+  for(let i=0;i<dust.length;i+=3){
+    const p=dust[i]; const pr=proj(p);
+    const tw=.35+.55*Math.sin(t*.001*p.speed+p.phase);
+    chatBrainCtx.globalAlpha=Math.min(1,.06+.12*tw+mobReactionPulse*0.25);
+    chatBrainCtx.fillStyle=i%13===0?'#d9f8ff':'#78cfff';
+    chatBrainCtx.beginPath();chatBrainCtx.arc(pr.sx,pr.sy,0.55,0,Math.PI*2);chatBrainCtx.fill();
+  }
+  chatBrainCtx.globalAlpha=1;
+
+  // hub rays fire brighter and more numerous the more "active" ม็อบ is — like neurons firing while thinking
+  const activeRayShare = mobReactionState==='idle' ? 0.35 : 1;
+  hubRays.forEach((r,i)=>{
+    if(i%3 >= Math.ceil(activeRayShare*3)) return;
+    const pa=proj({x:r.hx,y:r.hy,z:r.hz});
+    const pb=proj({x:r.dx,y:r.dy,z:r.dz});
+    const g=chatBrainCtx.createLinearGradient(pa.sx,pa.sy,pb.sx,pb.sy);
+    const rayAlpha=0.08+mobReactionPulse*0.5;
+    g.addColorStop(0,'rgba(190,225,255,'+rayAlpha+')');
+    g.addColorStop(1,'rgba(190,225,255,0)');
+    chatBrainCtx.strokeStyle=g; chatBrainCtx.lineWidth=0.7;
+    chatBrainCtx.beginPath(); chatBrainCtx.moveTo(pa.sx,pa.sy); chatBrainCtx.lineTo(pb.sx,pb.sy); chatBrainCtx.stroke();
+  });
+
+  // memory stars, glowing brighter while ม็อบ thinks/responds
+  const list = nodes.map(n=>({n,p:proj(n)})).sort((a,b)=>(a.p.depth||0)-(b.p.depth||0));
+  list.forEach(({n,p})=>{
+    const r=Math.max(0.9, 1.7*p.scale);
+    chatBrainCtx.save();
+    chatBrainCtx.globalAlpha=Math.max(.25,Math.min(1,p.scale));
+    chatBrainCtx.shadowColor=nodeColor(n);
+    chatBrainCtx.shadowBlur=2+mobReactionPulse*10+(n.isToc?3:0);
+    chatBrainCtx.fillStyle=nodeColor(n);
+    chatBrainCtx.beginPath();chatBrainCtx.arc(p.sx,p.sy,r,0,Math.PI*2);chatBrainCtx.fill();
+    chatBrainCtx.restore();
+  });
+
+  requestAnimationFrame(renderChatBrain);
+}
+requestAnimationFrame(renderChatBrain);
+
+/* ---------- minimap (static overview) */
+
+function drawMinimap(){
+  const mw=mini.clientWidth,mh=mini.clientHeight;
+  mctx.clearRect(0,0,mw,mh);
+  const bg=mctx.createLinearGradient(0,0,0,mh);bg.addColorStop(0,'rgba(1,5,10,.95)');bg.addColorStop(1,'rgba(2,8,14,.86)');
+  mctx.fillStyle=bg;mctx.fillRect(0,0,mw,mh);
+  const cx=mw/2,cy=mh/2;
+  const projMini=(p)=>project(p,.45,-.1,Math.min(mw,mh)/430,cx,cy,0,0);
+  if(state.showCortex){
+    shellRings.forEach(path=>{
+      mctx.strokeStyle='rgba(95,201,255,.16)';mctx.lineWidth=.45;
+      mctx.beginPath();path.forEach((pt,i)=>{const q=projMini(pt);if(i===0)mctx.moveTo(q.sx,q.sy);else mctx.lineTo(q.sx,q.sy);});mctx.stroke();
+    });
+  }
+  nodes.forEach(n=>{
+    if(n.virtual||n.archived)return;
+    const q=projMini(n);mctx.fillStyle=nodeColor(n);mctx.globalAlpha=.8;
+    mctx.beginPath();mctx.arc(q.sx,q.sy,n.pinned?1.3:.8,0,Math.PI*2);mctx.fill();
+  });
+  mctx.globalAlpha=1;
+  mctx.strokeStyle='rgba(170,235,255,.55)';mctx.strokeRect(1,1,mw-2,mh-2);
+}
+drawMinimap();
+
+/* ---------- interaction ---------- */
+
+canvas.addEventListener('mousedown', e=>{
+  if(e.button===2){ state.panning=true; } else { state.dragging=true; canvas.classList.add('dragging'); }
+  state.lastX=e.clientX; state.lastY=e.clientY;
+});
+window.addEventListener('mouseup', ()=>{ state.dragging=false; state.panning=false; canvas.classList.remove('dragging'); });
+canvas.addEventListener('contextmenu', e=>e.preventDefault());
+window.addEventListener('mousemove', e=>{
+  if(state.dragging && !state.mode2D){
+    state.yaw += (e.clientX-state.lastX)*0.005;
+    state.pitch = Math.max(-1.3, Math.min(1.3, state.pitch + (e.clientY-state.lastY)*0.005));
+  } else if(state.dragging && state.mode2D){
+    state.panX += (e.clientX-state.lastX);
+    state.panY += (e.clientY-state.lastY);
+  } else if(state.panning){
+    state.panX += (e.clientX-state.lastX);
+    state.panY += (e.clientY-state.lastY);
+  }
+  state.lastX=e.clientX; state.lastY=e.clientY;
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  state.zoom = Math.max(0.4, Math.min(3.2, state.zoom*(1-e.deltaY*0.001)));
+},{passive:false});
+
+function handleCanvasTap(mx,my){
+  const cx=W/2, cy=H/2+10;
+  const proj = state.mode2D
+    ? (p)=>project2D(p, state.zoom, cx, cy, state.panX, state.panY)
+    : (p)=>project(p, state.yaw, state.pitch, state.zoom, cx, cy, state.panX, state.panY);
+  let best=null, bestDist=16;
+  nodes.forEach((n,i)=>{
+    if(!nodeVisible(n)) return;
+    const p = proj(n);
+    const dist = Math.hypot(p.sx-mx, p.sy-my);
+    if(dist<bestDist){ bestDist=dist; best=i; }
+  });
+  if(best!==null){ selectNode(best); } else { closeDetail(); }
+}
+
+canvas.addEventListener('click', e=>{
+  const rect = canvas.getBoundingClientRect();
+  handleCanvasTap(e.clientX-rect.left, e.clientY-rect.top);
+});
+
+/* touch support: one finger drags/rotates, two fingers pinch-zoom, a still tap selects a star */
+const touchState = { mode:null, lastX:0, lastY:0, pinchStartDist:0, pinchStartZoom:1, moved:false };
+function touchDist(t0,t1){ return Math.hypot(t1.clientX-t0.clientX, t1.clientY-t0.clientY); }
+
+canvas.addEventListener('touchstart', e=>{
+  if(e.touches.length===1){
+    const t=e.touches[0];
+    touchState.mode='drag';
+    touchState.lastX=t.clientX; touchState.lastY=t.clientY;
+    touchState.moved=false;
+    state.dragging=true;
+    canvas.classList.add('dragging');
+  }else if(e.touches.length===2){
+    touchState.mode='pinch';
+    touchState.pinchStartDist=touchDist(e.touches[0],e.touches[1]);
+    touchState.pinchStartZoom=state.zoom;
+    state.dragging=false;
+  }
+},{passive:true});
+
+canvas.addEventListener('touchmove', e=>{
+  if(touchState.mode==='drag' && e.touches.length===1){
+    e.preventDefault();
+    const t=e.touches[0];
+    const dx=t.clientX-touchState.lastX, dy=t.clientY-touchState.lastY;
+    if(Math.abs(dx)>3||Math.abs(dy)>3) touchState.moved=true;
+    if(!state.mode2D){
+      state.yaw += dx*0.005;
+      state.pitch = Math.max(-1.3, Math.min(1.3, state.pitch + dy*0.005));
+    }else{
+      state.panX += dx; state.panY += dy;
+    }
+    touchState.lastX=t.clientX; touchState.lastY=t.clientY;
+  }else if(touchState.mode==='pinch' && e.touches.length===2){
+    e.preventDefault();
+    const dist = touchDist(e.touches[0],e.touches[1]);
+    const ratio = dist/(touchState.pinchStartDist||dist);
+    state.zoom = Math.max(0.4, Math.min(3.2, touchState.pinchStartZoom*ratio));
+  }
+},{passive:false});
+
+canvas.addEventListener('touchend', e=>{
+  if(touchState.mode==='drag' && !touchState.moved && e.changedTouches.length===1){
+    const t=e.changedTouches[0];
+    const rect = canvas.getBoundingClientRect();
+    handleCanvasTap(t.clientX-rect.left, t.clientY-rect.top);
+  }
+  touchState.mode=null;
+  state.dragging=false;
+  canvas.classList.remove('dragging');
+},{passive:true});
+canvas.addEventListener('touchcancel', ()=>{
+  touchState.mode=null;
+  state.dragging=false;
+  canvas.classList.remove('dragging');
+},{passive:true});
+
+function selectNode(i){
+  state.selected = i;
+  const n = nodes[i];
+  if(n.virtual) return;
+  const mem = n.memoryId ? memoryRecords.find(m=>m.id===n.memoryId) : null;
+  document.getElementById('detailTitle').textContent = n.label;
+  const badges = document.getElementById('detailBadges');
+  badges.innerHTML = '';
+  const ownerB = document.createElement('span'); ownerB.className='badge'; ownerB.style.color=ownerById[n.ownerId].color; ownerB.textContent = ownerById[n.ownerId].name;
+  const regionB = document.createElement('span'); regionB.className='badge'; regionB.textContent = REGIONS.find(r=>r.id===n.region).name;
+  const emoB = document.createElement('span'); emoB.className='badge'; emoB.style.color=emotionById[n.emotionId].color; emoB.textContent = emotionById[n.emotionId].name;
+  badges.appendChild(ownerB); badges.appendChild(regionB); badges.appendChild(emoB);
+  document.getElementById('detailExcerpt').textContent = mem ? mem.content : n.excerpt;
+  document.getElementById('detailMeta').textContent = mem ? ('ความสำคัญ '+mem.importance+'/5 · '+(mem.pinned?'ปักหมุด':'')+(mem.archived?' · เก็บถาวร':'')+' · เปิดดู '+mem.accessCount+' ครั้ง') : ('เชื่อมโยง ' + n.degree + ' เส้น' + (n.isToc? ' · ก้อนสารบัญ':'') + (n.isSelfAxis? ' · แกนตัวตน':''));
+  document.getElementById('detailPanel').classList.add('show');
+}
+function closeDetail(){
+  state.selected = null;
+  document.getElementById('detailPanel').classList.remove('show');
+}
+document.getElementById('closeDetail').addEventListener('click', closeDetail);
+
+/* ---------- sidebar wiring ---------- */
+
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>el.classList.remove('show'), 1800);
+}
+
+function switchScreen(key){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.screen===key));
+  document.getElementById('sidebarBrain').style.display = key==='brain' ? '' : 'none';
+  document.getElementById('canvasWrap').style.display = key==='brain' ? '' : 'none';
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active', s.dataset.screen===key));
+  if(key==='pulse') renderPulse();
+  if(key==='command') renderCommand();
+  if(key==='memory') renderMemoryList();
+}
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=> switchScreen(tab.dataset.screen));
+});
+
+document.getElementById('btnSave').addEventListener('click', ()=>{
+  const link = document.createElement('a');
+  link.download = 'mob-brain-hologram.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast('บันทึกภาพสแนปช็อตแล้ว');
+});
+document.getElementById('btnAutoRotate').addEventListener('click', function(){
+  state.autoRotate = !state.autoRotate;
+  this.classList.toggle('on', state.autoRotate);
+});
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  state.yaw=0.5; state.pitch=-0.15; state.zoom=1; state.panX=0; state.panY=0;
+});
+document.getElementById('btnToggle2D').addEventListener('click', function(){
+  state.mode2D = !state.mode2D;
+  this.textContent = state.mode2D ? 'แบบ 3 มิติ ↗' : 'แบบ 2 มิติ ↗';
+});
+
+document.querySelectorAll('#colorByGroup .pill').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#colorByGroup .pill').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    state.colorBy = btn.dataset.colorby;
+  });
+});
+
+const ownerGroup = document.getElementById('ownerGroup');
+OWNERS.forEach(o=>{
+  const count = nodes.filter(n=>n.ownerId===o.id).length;
+  const pill = document.createElement('div');
+  pill.className = 'pill owner-pill on';
+  pill.innerHTML = '<span class="swatch" style="background:'+o.color+'"></span>'+o.name+' <span class="count">'+count+'</span>';
+  pill.addEventListener('click', ()=>{
+    if(state.visibleOwners.has(o.id)){ state.visibleOwners.delete(o.id); pill.classList.remove('on'); }
+    else { state.visibleOwners.add(o.id); pill.classList.add('on'); }
+  });
+  ownerGroup.appendChild(pill);
+});
+
+function wireToggle(id, key){
+  const el = document.getElementById(id);
+  el.classList.toggle('on', state[key]);
+  el.addEventListener('click', ()=>{
+    state[key] = !state[key];
+    el.classList.toggle('on', state[key]);
+  });
+}
+wireToggle('chkOnlyEdged','onlyEdged');
+wireToggle('chkHideToc','hideToc');
+wireToggle('chkSelfAxis','onlySelfAxis');
+wireToggle('chkCortex','showCortex');
+wireToggle('chkSynapse','showSynapse');
+wireToggle('chkLabels','showLabels');
+wireToggle('chkDust','showDust');
+
+document.getElementById('searchBox').addEventListener('input', e=>{ state.search = e.target.value; });
+
+/* ---------- header stats ---------- */
+
+document.getElementById('statNodes').textContent = nodes.length.toLocaleString();
+document.getElementById('statEdges').textContent = edges.length.toLocaleString();
+
+/* ---------- ชีพจร (pulse) ---------- */
+
+function renderPulse(){
+  const emoCounts = EMOTIONS.map(e=>({e, count:activeMemories().filter(n=>!n.archived && n.emotionId===e.id).length}));
+  emoCounts.sort((a,b)=>b.count-a.count);
+  const top = emoCounts[0];
+  const weekly = getWeeklyActivity();
+  const totalMsgWeek = weekly.reduce((s,d)=>s+d.count,0);
+
+  const statsEl = document.getElementById('pulseStats');
+  statsEl.innerHTML='';
+  [
+    {label:'อารมณ์เด่นสัปดาห์นี้', value:top.e.name, color:top.e.color},
+    {label:'ก้อนความจำทั้งหมด', value:activeMemories().length.toLocaleString()},
+    {label:'ความทรงจำสัปดาห์นี้', value:totalMsgWeek.toLocaleString()},
+    {label:'เจ้าของความจำที่เชื่อมอยู่', value:OWNERS.length.toLocaleString()},
+  ].forEach(s=>{
+    const c=document.createElement('div'); c.className='stat-card';
+    c.innerHTML='<div class="label">'+s.label+'</div><div class="value" style="'+(s.color?'color:'+s.color:'')+'">'+s.value+'</div>';
+    statsEl.appendChild(c);
+  });
+
+  const barsEl = document.getElementById('pulseBars');
+  const labelsEl = document.getElementById('pulseBarLabels');
+  barsEl.innerHTML=''; labelsEl.innerHTML='';
+  const maxV = Math.max(1, ...weekly.map(d=>d.count));
+  weekly.forEach(d=>{
+    const bar=document.createElement('div'); bar.className='bar'; bar.style.height=(d.count/maxV*100)+'%'; bar.title=d.count+' ความทรงจำ';
+    barsEl.appendChild(bar);
+    const lb=document.createElement('span'); lb.textContent=d.label;
+    labelsEl.appendChild(lb);
+  });
+
+  const tagsEl = document.getElementById('pulseEmotionTags');
+  tagsEl.innerHTML='';
+  emoCounts.forEach(({e,count})=>{
+    const t=document.createElement('div'); t.className='pill';
+    t.innerHTML='<span class="swatch" style="background:'+e.color+'"></span>'+e.name+' <span class="count">'+count+'</span>';
+    tagsEl.appendChild(t);
+  });
+}
+
+/* ---------- แท่นบัญชาการ (command deck) ---------- */
+
+function renderCommand(){
+  const el = document.getElementById('commandStats');
+  el.innerHTML='';
+  [
+    {label:'ก้อนความจำทั้งหมด', value:activeMemories().length.toLocaleString()},
+    {label:'เส้นไซแนปส์ทั้งหมด', value:edges.length.toLocaleString()},
+    {label:'ตัวตนที่เชื่อมอยู่', value:OWNERS.length.toLocaleString()},
+    {label:'สถานะซิงค์', value:authSession ? ('ซิงค์แล้ว · '+authSession.user.email) : 'Local-first (ยังไม่ได้ซิงค์)'},
+  ].forEach(s=>{
+    const c=document.createElement('div'); c.className='stat-card';
+    c.innerHTML='<div class="label">'+s.label+'</div><div class="value">'+s.value+'</div>';
+    el.appendChild(c);
+  });
+}
+document.getElementById('btnSync').addEventListener('click', ()=>{loadMemoryStore();refreshMemoryRuntime();showToast('โหลดความทรงจำจากเครื่องแล้ว');});
+document.getElementById('btnBackup').addEventListener('click', ()=>downloadMemoryBackup('mob-memory-backup.json'));
+document.getElementById('btnClearCache').addEventListener('click', ()=>{try{localStorage.removeItem('mob_memory_ui_cache_v2');showToast('ล้าง UI cache แล้ว');}catch(e){showToast('ล้างแคชไม่สำเร็จ');}});
+function downloadMemoryBackup(name){const payload={schema:'mob-memory-v2',exportedAt:new Date().toISOString(),memories:memoryRecords};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),0);showToast('สำรองความทรงจำแล้ว');}
+
+/* ---------- ความทรงจำ (memory feed) ---------- */
+
+
+
+document.getElementById('memorySearch').addEventListener('input', renderMemoryList);
+document.getElementById('memoryFilterAll').addEventListener('click',()=>{memoryViewFilter='all';setMemoryFilterPills();renderMemoryList();});
+document.getElementById('memoryFilterPinned').addEventListener('click',()=>{memoryViewFilter='pinned';setMemoryFilterPills();renderMemoryList();});
+document.getElementById('memoryFilterArchived').addEventListener('click',()=>{memoryViewFilter='archived';setMemoryFilterPills();renderMemoryList();});
+document.getElementById('memorySortRecent').addEventListener('click',()=>{memorySort='recent';setMemorySortPills();renderMemoryList();});
+document.getElementById('memorySortImportant').addEventListener('click',()=>{memorySort='important';setMemorySortPills();renderMemoryList();});
+document.getElementById('btnNewMemory').addEventListener('click',()=>openMemoryEditor());
+document.getElementById('btnMemoryCancel').addEventListener('click',closeMemoryEditor);
+document.getElementById('btnMemorySave').addEventListener('click',saveMemoryFromForm);
+document.getElementById('memoryModal').addEventListener('click',e=>{if(e.target.id==='memoryModal')closeMemoryEditor();});
+
+/* ---------- ห้องลับความจำ (vault) ---------- */
+
+document.getElementById('btnUnlock').addEventListener('click', ()=>{
+  const code = document.getElementById('vaultCode').value.trim();
+  if(!code){ showToast('กรุณาใส่รหัสก่อนครับ'); return; }
+  document.getElementById('vaultLocked').style.display='none';
+  document.getElementById('vaultUnlocked').style.display='block';
+  const listEl = document.getElementById('vaultList');
+  listEl.innerHTML='';
+  SECRET_MEMORIES.forEach(m=>{
+    const d=document.createElement('div'); d.className='memory-item';
+    d.innerHTML='<div class="mi-top"><span class="mi-title">'+m.title+'</span></div><div class="mi-excerpt" style="display:block">'+m.excerpt+'</div>';
+    listEl.appendChild(d);
+  });
+  showToast('ปลดล็อกแล้ว (ตัวอย่างนี้ไม่มีการเข้ารหัสจริง)');
+});
+
+/* ---------- คุยกับม็อบ (chat) ---------- */
+
+const CHAT_STORAGE_KEY = 'mob_chat_history_v1';
+let chatHistory = [];
+let chatDisplayLog = [];
+let chatBusy = false;
+
+function saveChatStore(){
+  try{
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ chatHistory, chatDisplayLog }));
+    return true;
+  }catch(e){ console.warn('Chat store save failed', e); return false; }
+}
+function loadChatStore(){
+  try{
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(!data || !Array.isArray(data.chatDisplayLog)) return false;
+    chatHistory = Array.isArray(data.chatHistory) ? data.chatHistory : [];
+    chatDisplayLog = data.chatDisplayLog;
+    return chatDisplayLog.length > 0;
+  }catch(e){ console.warn('Chat store load failed', e); return false; }
+}
+function clearChatStore(){
+  chatHistory = [];
+  chatDisplayLog = [];
+  try{ localStorage.removeItem(CHAT_STORAGE_KEY); }catch(e){}
+  document.getElementById('chatMessages').innerHTML = '';
+  appendChatMsg('สวัสดีครับ วันนี้อยากเล่าอะไรให้ม็อบฟังไหม', 'mob');
+  showToast('ล้างบทสนทนาแล้ว');
+}
+
+function appendChatMsg(text, who, persist=true){
+  const el=document.createElement('div'); el.className='msg '+who;
+  const textEl=document.createElement('div'); textEl.textContent=text;
+  el.appendChild(textEl);
+  if(who==='mob'){
+    const saveBtn=document.createElement('div');
+    saveBtn.className='msg-save-btn';
+    saveBtn.textContent='+ บันทึกเป็นความทรงจำ';
+    saveBtn.addEventListener('click', ()=>saveChatReplyAsMemory(text));
+    el.appendChild(saveBtn);
+  }
+  const wrap=document.getElementById('chatMessages');
+  wrap.appendChild(el);
+  wrap.scrollTop = wrap.scrollHeight;
+  if(persist && !who.includes('typing')){
+    chatDisplayLog.push({text, who});
+    saveChatStore();
+  }
+  return el;
+}
+function saveChatReplyAsMemory(text){
+  const title = text.length>60 ? text.slice(0,60).trim()+'…' : text;
+  openMemoryEditor(null, { title:'บทสนทนากับม็อบ: '+title, content:text, tags:['จากแชท'] });
+}
+if(loadChatStore()){
+  chatDisplayLog.forEach(m=>appendChatMsg(m.text, m.who, false));
+}else{
+  appendChatMsg('สวัสดีครับ วันนี้อยากเล่าอะไรให้ม็อบฟังไหม', 'mob');
+}
+
+let chatProvider = 'claude';
+const MOB_SYSTEM_PROMPT = 'คุณคือ "ม็อบ" ผู้ช่วย AI ที่จดจำความทรงจำของผู้ใช้และพูดคุยด้วยกันเป็นประจำในแอปบันทึกความทรงจำ ตอบเป็นภาษาไทย เป็นกันเอง กระชับ ตรงประเด็น หากคำถามต้องใช้ข้อมูลปัจจุบันหรือข้อเท็จจริงที่ไม่แน่ใจ ให้ใช้เครื่องมือค้นเว็บช่วยก่อนตอบ';
+
+document.getElementById('apiToggle').addEventListener('click', function(){
+  const panel = document.getElementById('apiSettings');
+  const showing = panel.style.display !== 'none';
+  panel.style.display = showing ? 'none' : 'block';
+  this.textContent = 'ตั้งค่า API key (สำหรับใช้งานนอก Claude.ai) ' + (showing ? '▾' : '▴');
+});
+document.getElementById('btnAutoSaveChat').addEventListener('click', function(){
+  autoSaveEnabled = !autoSaveEnabled;
+  this.classList.toggle('on', autoSaveEnabled);
+  showToast(autoSaveEnabled ? 'เปิดบันทึกความทรงจำอัตโนมัติแล้ว' : 'ปิดบันทึกความทรงจำอัตโนมัติแล้ว');
+});
+document.getElementById('btnClearChat').addEventListener('click', ()=>{
+  if(!confirm('ล้างบทสนทนาทั้งหมดหรือไม่? ประวัติแชทที่เก็บไว้ในเครื่องจะหายไป')) return;
+  clearChatStore();
+});
+document.getElementById('providerClaude').addEventListener('click', function(){
+  chatProvider = 'claude';
+  this.classList.add('on');
+  document.getElementById('providerGemini').classList.remove('on');
+  document.getElementById('apiKeyInputClaude').style.display = '';
+  document.getElementById('apiKeyInputGemini').style.display = 'none';
+});
+document.getElementById('providerGemini').addEventListener('click', function(){
+  chatProvider = 'gemini';
+  this.classList.add('on');
+  document.getElementById('providerClaude').classList.remove('on');
+  document.getElementById('apiKeyInputClaude').style.display = 'none';
+  document.getElementById('apiKeyInputGemini').style.display = '';
+});
+
+async function callClaude(attachment){
+  try{
+    const apiKey = document.getElementById('apiKeyInputClaude').value.trim();
+    const headers = { 'Content-Type':'application/json' };
+    if(apiKey){
+      headers['x-api-key'] = apiKey;
+      headers['anthropic-version'] = '2023-06-01';
+      headers['anthropic-dangerous-direct-browser-access'] = 'true';
+    }
+    const lastIdx = chatHistory.length-1;
+    const apiMessages = chatHistory.map((m,i)=>{
+      if(i!==lastIdx || !attachment) return m;
+      const blocks=[{type:'text', text:String(m.content)}];
+      if(attachment.kind==='image'){
+        blocks.push({type:'image', source:{type:'base64', media_type:attachment.mediaType, data:attachment.data}});
+      }else if(attachment.kind==='pdf'){
+        blocks.push({type:'document', source:{type:'base64', media_type:'application/pdf', data:attachment.data}});
+      }else if(attachment.kind==='text'){
+        blocks[0].text += '\n\n--- เนื้อหาไฟล์ '+attachment.name+' ---\n'+attachment.data;
+      }
+      return { role:m.role, content:blocks };
+    });
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers,
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        system: MOB_SYSTEM_PROMPT,
+        messages: apiMessages,
+        tools: [{ type:'web_search_20250305', name:'web_search' }]
+      })
+    });
+    const data = await res.json();
+    if(data.error){ throw new Error(data.error.message || 'Claude API error'); }
+    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+    const reply = text || 'ม็อบยังไม่มีคำตอบให้ตอนนี้ ลองถามอีกแบบดูไหมครับ';
+    chatHistory.push({role:'assistant', content: reply});
+    saveChatStore();
+    return reply;
+  }catch(err){
+    console.error('Mob (Claude) chat error:', err);
+    return null;
+  }
+}
+
+async function callGemini(attachment){
+  try{
+    const apiKey = document.getElementById('apiKeyInputGemini').value.trim();
+    if(!apiKey) return null;
+    const lastIdx = chatHistory.length-1;
+    const contents = chatHistory.map((m,i)=>{
+      const role = m.role==='assistant' ? 'model' : 'user';
+      if(i!==lastIdx || !attachment) return { role, parts:[{ text:String(m.content) }] };
+      const parts=[{ text:String(m.content) }];
+      if(attachment.kind==='image'){
+        parts.push({ inline_data:{ mime_type:attachment.mediaType, data:attachment.data } });
+      }else if(attachment.kind==='pdf'){
+        parts.push({ inline_data:{ mime_type:'application/pdf', data:attachment.data } });
+      }else if(attachment.kind==='text'){
+        parts[0].text += '\n\n--- เนื้อหาไฟล์ '+attachment.name+' ---\n'+attachment.data;
+      }
+      return { role, parts };
+    });
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+      method:'POST',
+      headers: { 'Content-Type':'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({
+        system_instruction: { parts:[{ text: MOB_SYSTEM_PROMPT }] },
+        contents,
+        tools: [{ google_search: {} }]
+      })
+    });
+    const data = await res.json();
+    if(data.error){ throw new Error(data.error.message || 'Gemini API error'); }
+    const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+    const text = parts.filter(p=>p.text).map(p=>p.text).join('\n').trim();
+    const reply = text || 'ม็อบยังไม่มีคำตอบให้ตอนนี้ ลองถามอีกแบบดูไหมครับ';
+    chatHistory.push({role:'assistant', content: reply});
+    saveChatStore();
+    return reply;
+  }catch(err){
+    console.error('Mob (Gemini) chat error:', err);
+    return null;
+  }
+}
+
+async function callMob(userText, attachment){
+  const relevant=retrieveMemories(userText,5);
+  const context=relevant.length?'\n\n[MEMORY CONTEXT — ข้อมูลจาก Memory Engine ที่เกี่ยวข้อง]\n'+relevant.map((m,i)=>(i+1)+'. '+m.title+' | '+m.content+' | tags: '+m.tags.join(', ')).join('\n')+'\n[/MEMORY CONTEXT]':'';
+  const attachNote = attachment ? '\n\n[ไฟล์แนบ: '+attachment.name+']' : '';
+  chatHistory.push({role:'user',content:userText+context+attachNote});
+  saveChatStore();
+  relevant.forEach(m=>m.accessCount++); if(relevant.length)saveMemoryStore();
+  return chatProvider==='gemini' ? await callGemini(attachment) : await callClaude(attachment);
+}
+
+/* ---------- Auto-memory classifier ----------
+   Loosely modeled on how different real brain structures specialize:
+   - Amygdala: emotionally charged content
+   - Hippocampus (mapped to 'subcortical' — anatomically hippocampus IS a subcortical structure):
+     fresh, short-term, "just happened" content
+   - Cerebrum / prefrontal (mapped to 'frontal'): reasoning, planning, decision-making
+   - Neocortex (mapped to 'top', broad cortical surface): general facts/knowledge, the default bucket
+*/
+const EMOTION_KEYWORDS = {
+  joy:     ['ดีใจ','สนุก','มีความสุข','ตื่นเต้นดี','เยี่ยม','happy','excited','glad','great news'],
+  sad:     ['เศร้า','เสียใจ','ผิดหวัง','ร้องไห้','แย่จัง','sad','disappointed','cry'],
+  anger:   ['โกรธ','หงุดหงิด','โมโห','รำคาญ','ไม่พอใจ','angry','furious','pissed'],
+  anxious: ['กังวล','กลัว','เครียด','นอนไม่หลับ','ตื่นตระหนก','worried','anxious','scared','stressed'],
+};
+const FRONTAL_KEYWORDS = ['วิธี','แก้ปัญหา','วางแผน','ตัดสินใจ','วิเคราะห์','เปรียบเทียบ','ควรทำ','how to','should i','plan','decide'];
+const HIPPOCAMPUS_KEYWORDS = ['เมื่อวาน','วันนี้','เพิ่ง','ล่าสุด','ตอนนี้','เมื่อกี้','yesterday','today','just now','earlier'];
+
+function classifyMemoryFromText(userText, mobReply){
+  const text = (userText+' '+mobReply).toLowerCase();
+  let bestEmotion='neutral', bestHits=0;
+  for(const [emo,kws] of Object.entries(EMOTION_KEYWORDS)){
+    const hits = kws.filter(k=>text.includes(k)).length;
+    if(hits>bestHits){ bestHits=hits; bestEmotion=emo; }
+  }
+  if(bestHits>0) return { region:'amygdala', emotionId:bestEmotion, importance:4 };
+  if(FRONTAL_KEYWORDS.some(k=>text.includes(k))) return { region:'frontal', emotionId:'neutral', importance:3 };
+  if(HIPPOCAMPUS_KEYWORDS.some(k=>text.includes(k))) return { region:'subcortical', emotionId:'neutral', importance:3 };
+  return { region:'top', emotionId:'neutral', importance:2 };
+}
+
+let autoSaveEnabled = true;
+function autoSaveChatMemory(userText, mobReply){
+  if(!autoSaveEnabled) return;
+  if(userText.trim().length<4) return; // skip trivial acknowledgements like "ok", "555"
+  const cls = classifyMemoryFromText(userText, mobReply);
+  const now = new Date().toISOString();
+  const title = userText.length>60 ? userText.slice(0,60).trim()+'…' : userText;
+  const record = normalizeMemory({
+    id: makeId(),
+    title: 'บทสนทนา: '+title,
+    content: 'คุณ: '+userText+'\n\nม็อบ: '+mobReply,
+    ownerId: 'sai',
+    emotionId: cls.emotionId,
+    region: cls.region,
+    tags: ['จากแชท','อัตโนมัติ'],
+    importance: cls.importance,
+    pinned: false,
+    createdAt: now, updatedAt: now, accessCount: 0
+  });
+  memoryRecords.unshift(record);
+  saveMemoryStore();
+  refreshMemoryRuntime();
+  const regionName = (REGIONS.find(r=>r.id===cls.region)||{}).name || cls.region;
+  showToast('ม็อบจำเรื่องนี้ไว้แล้ว · เก็บที่ส่วน'+regionName);
+}
+
+function sendChat(){
+  if(chatBusy) return;
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  const attachment = pendingAttachment;
+  if(!text && !attachment) return;
+  const displayText = text || 'ช่วยดูไฟล์ที่แนบมาให้หน่อย';
+  const userMsgEl = appendChatMsg(displayText, 'me');
+  if(attachment){
+    const tag=document.createElement('div');
+    tag.className='msg-attachment';
+    tag.textContent='📎 '+attachment.name;
+    userMsgEl.appendChild(tag);
+  }
+  input.value='';
+  pendingAttachment = null;
+  showAttachPreview();
+  chatBusy = true;
+  setMobReaction('thinking');
+  const typingEl = appendChatMsg(attachment ? 'กำลังอ่านไฟล์...' : 'กำลังพิมพ์...', 'mob typing');
+  callMob(displayText, attachment).then(reply=>{
+    typingEl.remove();
+    setMobReaction('responding');
+    setTimeout(()=>{ if(mobReactionState==='responding') setMobReaction('idle'); }, 1600);
+    if(reply){
+      appendChatMsg(reply, 'mob');
+      autoSaveChatMemory(displayText, reply);
+    }else{
+      const providerName = chatProvider==='gemini' ? 'Gemini' : 'Claude';
+      appendChatMsg(
+        MOB_REPLIES[Math.floor(Math.random()*MOB_REPLIES.length)] + ' (โหมดสำรอง: เชื่อมต่อ ' + providerName + ' ไม่สำเร็จตอนนี้ ลองเช็ค API key ในช่องตั้งค่าอีกครั้ง)',
+        'mob'
+      );
+    }
+  }).finally(()=>{ chatBusy = false; });
+}
+document.getElementById('chatSend').addEventListener('click', sendChat);
+document.getElementById('chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
+
+/* ---------- file attachments for chat (image / PDF / Word / Excel) ---------- */
+
+let pendingAttachment = null;
+const MAX_ATTACHMENT_BYTES = 15*1024*1024; // 15MB safety limit
+
+function readFileAsBase64(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(String(r.result).split(',')[1]||'');
+    r.onerror=()=>reject(new Error('อ่านไฟล์ไม่สำเร็จ'));
+    r.readAsDataURL(file);
+  });
+}
+
+function showAttachPreview(){
+  const el=document.getElementById('attachPreview');
+  if(!pendingAttachment){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='flex';
+  el.innerHTML='<span>📎 '+escapeHtml(pendingAttachment.name)+' ('+pendingAttachment.kindLabel+')</span><span class="ap-remove" id="apRemove">✕ เอาออก</span>';
+  document.getElementById('apRemove').addEventListener('click', ()=>{ pendingAttachment=null; showAttachPreview(); });
+}
+
+document.getElementById('chatAttachBtn').addEventListener('click', ()=>{
+  document.getElementById('chatFileInput').click();
+});
+
+document.getElementById('chatFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files && e.target.files[0];
+  e.target.value = ''; // allow choosing the same file again later
+  if(!file) return;
+  if(file.size > MAX_ATTACHMENT_BYTES){
+    showToast('ไฟล์ใหญ่เกินไป (จำกัดไม่เกิน 15MB)');
+    return;
+  }
+  showToast('กำลังอ่านไฟล์...');
+  try{
+    const name = file.name;
+    const lower = name.toLowerCase();
+    if(file.type.startsWith('image/')){
+      const data = await readFileAsBase64(file);
+      pendingAttachment = { kind:'image', kindLabel:'รูปภาพ', mediaType:file.type, data, name };
+    }else if(file.type==='application/pdf' || lower.endsWith('.pdf')){
+      const data = await readFileAsBase64(file);
+      pendingAttachment = { kind:'pdf', kindLabel:'PDF', mediaType:'application/pdf', data, name };
+    }else if(lower.endsWith('.docx')){
+      if(typeof mammoth==='undefined'){ showToast('โหลดตัวอ่านไฟล์ Word ไม่สำเร็จ ลองใหม่อีกครั้ง'); return; }
+      const buf = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({arrayBuffer:buf});
+      pendingAttachment = { kind:'text', kindLabel:'Word', data:result.value.slice(0,20000), name };
+    }else if(lower.endsWith('.xlsx') || lower.endsWith('.xls')){
+      if(typeof XLSX==='undefined'){ showToast('โหลดตัวอ่านไฟล์ Excel ไม่สำเร็จ ลองใหม่อีกครั้ง'); return; }
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array'});
+      let text='';
+      wb.SheetNames.forEach(sheetName=>{
+        text += '\n## ชีต: '+sheetName+'\n'+XLSX.utils.sheet_to_csv(wb.Sheets[sheetName]);
+      });
+      pendingAttachment = { kind:'text', kindLabel:'Excel', data:text.slice(0,20000), name };
+    }else{
+      showToast('รองรับเฉพาะรูปภาพ, PDF, .docx และ .xlsx เท่านั้น');
+      return;
+    }
+    showAttachPreview();
+    showToast('แนบไฟล์แล้ว พิมพ์คำถามแล้วกดส่งได้เลย');
+  }catch(err){
+    console.error('Attachment read error:', err);
+    showToast('อ่านไฟล์นี้ไม่สำเร็จ');
+  }
+});
+
+/* ---------- เครื่องมือ (tools) ---------- */
+
+document.getElementById('toolExport').addEventListener('click',()=>downloadMemoryBackup('mob-memories.json'));
+document.getElementById('toolImport').addEventListener('click',()=>{const input=document.createElement('input');input.type='file';input.accept='.json,application/json';input.onchange=async()=>{const file=input.files&&input.files[0];if(!file)return;try{const data=JSON.parse(await file.text());const incoming=Array.isArray(data)?data:(Array.isArray(data.memories)?data.memories:[]);if(!incoming.length)throw new Error('empty');const normalized=incoming.map(normalizeMemory);const byId=new Map(memoryRecords.map(m=>[m.id,m]));normalized.forEach(m=>byId.set(m.id,m));memoryRecords=[...byId.values()].sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));saveMemoryStore();refreshMemoryRuntime();showToast('นำเข้าความทรงจำ '+normalized.length+' รายการแล้ว');}catch(e){console.error(e);showToast('ไฟล์ JSON ไม่ถูกต้องหรือไม่ใช่ memory backup');}};input.click();});
+document.getElementById('toolRegen').addEventListener('click',()=>{if(!confirm('สร้างข้อมูลตัวอย่างชุดใหม่และแทนที่ความทรงจำปัจจุบันหรือไม่?'))return;localStorage.removeItem(MEMORY_STORAGE_KEY);seedMemoryStore();refreshMemoryRuntime();closeDetail();showToast('สร้างฐานความทรงจำตัวอย่างใหม่แล้ว');});
+document.getElementById('toolResetFilters').addEventListener('click', ()=>{
+  state.visibleOwners = new Set(OWNERS.map(o=>o.id));
+  state.onlyEdged=true; state.hideToc=false; state.onlySelfAxis=false;
+  state.showCortex=true; state.showSynapse=true; state.showLabels=true; state.showDust=true;
+  state.search=''; document.getElementById('searchBox').value='';
+  document.querySelectorAll('#ownerGroup .pill').forEach(p=>p.classList.add('on'));
+  document.getElementById('chkOnlyEdged').classList.add('on');
+  document.getElementById('chkHideToc').classList.remove('on');
+  document.getElementById('chkSelfAxis').classList.remove('on');
+  document.getElementById('chkCortex').classList.add('on');
+  document.getElementById('chkSynapse').classList.add('on');
+  document.getElementById('chkLabels').classList.add('on');
+  document.getElementById('chkDust').classList.add('on');
+  memoryViewFilter='all'; memorySort='recent'; const ms=document.getElementById('memorySearch'); if(ms)ms.value=''; setMemoryFilterPills(); setMemorySortPills();
+  showToast('ล้างตัวกรองกลับเป็นค่าเริ่มต้นแล้ว');
+});
+
+
+/* ---------- Supabase auth + cross-device sync ----------
+   localStorage stays as the working cache (so the app still works offline);
+   Supabase becomes the source of truth once signed in. Last-write-wins by updated_at,
+   soft-deletes (deletedAt) are what let a delete on one device correctly remove the
+   record on another instead of it reappearing from a stale copy. */
+
+const SUPABASE_URL = 'https://cnbfufgeraeyyldrjlzz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuYmZ1ZmdlcmFleXlsZHJqbHp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNTA1NjcsImV4cCI6MjEwNDYyNjU2N30.l0ee6dYR_ayXqsFjMSCp5kLZnyYCZnsa2nlZV14Jh3o';
+const SYNC_LAST_AT_KEY = 'mob_last_synced_at';
+
+const sb = (typeof window.supabase!=='undefined') ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let authSession = null;
+let lastSyncedAt = localStorage.getItem(SYNC_LAST_AT_KEY) || null;
+let syncing = false;
+
+function localToRemoteRow(m){
+  return {
+    id:m.id, user_id:authSession.user.id, title:m.title, content:m.content,
+    owner_id:m.ownerId, emotion_id:m.emotionId, region:m.region, tags:m.tags,
+    importance:m.importance, pinned:m.pinned, archived:m.archived, access_count:m.accessCount,
+    created_at:m.createdAt, updated_at:m.updatedAt, deleted_at:m.deletedAt||null
+  };
+}
+function remoteRowToLocal(r){
+  return normalizeMemory({
+    id:r.id, title:r.title, content:r.content, ownerId:r.owner_id, emotionId:r.emotion_id,
+    region:r.region, tags:r.tags, importance:r.importance, pinned:r.pinned, archived:r.archived,
+    accessCount:r.access_count, createdAt:r.created_at, updatedAt:r.updated_at, deletedAt:r.deleted_at
+  });
+}
+
+function updateAuthUI(){
+  const btn=document.getElementById('syncStatusBtn');
+  const outView=document.getElementById('authSignedOutView');
+  const inView=document.getElementById('authSignedInView');
+  if(authSession){
+    btn.textContent='🟢 '+authSession.user.email;
+    outView.style.display='none'; inView.style.display='block';
+    document.getElementById('authUserEmail').textContent='เข้าสู่ระบบเป็น: '+authSession.user.email;
+    document.getElementById('syncLastAt').textContent = lastSyncedAt ? ('ซิงค์ล่าสุด: '+new Date(lastSyncedAt).toLocaleString('th-TH')) : 'ยังไม่เคยซิงค์บนเครื่องนี้';
+  }else{
+    btn.textContent='เข้าสู่ระบบเพื่อซิงค์';
+    outView.style.display='block'; inView.style.display='none';
+  }
+}
+
+async function initAuth(){
+  if(!sb){ document.getElementById('syncStatusBtn').textContent='ซิงค์ใช้ไม่ได้ (โหลด Supabase ไม่สำเร็จ)'; return; }
+  const { data } = await sb.auth.getSession();
+  authSession = data.session;
+  updateAuthUI();
+  if(authSession) syncNow();
+  sb.auth.onAuthStateChange((event, session)=>{
+    const wasSignedOut = !authSession;
+    authSession = session;
+    updateAuthUI();
+    if(session && wasSignedOut) syncNow();
+  });
+}
+
+async function syncNow(){
+  if(!sb || !authSession || syncing) return;
+  syncing = true;
+  const statusBtn=document.getElementById('syncStatusBtn');
+  const prevLabel=statusBtn.textContent;
+  statusBtn.textContent='กำลังซิงค์...';
+  try{
+    // 1) push local changes newer than the last sync
+    const dirty = memoryRecords.filter(m=>!lastSyncedAt || new Date(m.updatedAt)>new Date(lastSyncedAt));
+    if(dirty.length){
+      const { error } = await sb.from('memories').upsert(dirty.map(localToRemoteRow));
+      if(error) throw error;
+    }
+    // 2) pull everything changed since last sync (including tombstones)
+    let query = sb.from('memories').select('*');
+    if(lastSyncedAt) query = query.gt('updated_at', lastSyncedAt);
+    const { data: remoteRows, error: pullErr } = await query;
+    if(pullErr) throw pullErr;
+
+    const byId = new Map(memoryRecords.map(m=>[m.id,m]));
+    (remoteRows||[]).forEach(r=>{
+      const incoming = remoteRowToLocal(r);
+      const existing = byId.get(incoming.id);
+      if(!existing || new Date(incoming.updatedAt) >= new Date(existing.updatedAt)){
+        byId.set(incoming.id, incoming);
+      }
+    });
+    memoryRecords = [...byId.values()].sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt));
+    saveMemoryStore();
+    refreshMemoryRuntime();
+
+    lastSyncedAt = new Date().toISOString();
+    localStorage.setItem(SYNC_LAST_AT_KEY, lastSyncedAt);
+    showToast('ซิงค์ความทรงจำเรียบร้อยแล้ว');
+  }catch(err){
+    console.error('Sync error:', err);
+    showToast('ซิงค์ไม่สำเร็จ: '+(err.message||'ลองใหม่อีกครั้ง'));
+  }finally{
+    syncing = false;
+    statusBtn.textContent = authSession ? prevLabel : 'เข้าสู่ระบบเพื่อซิงค์';
+    updateAuthUI();
+  }
+}
+
+document.getElementById('syncStatusBtn').addEventListener('click', ()=>{
+  document.getElementById('authModal').classList.add('show');
+});
+document.getElementById('btnAuthClose').addEventListener('click', ()=>{
+  document.getElementById('authModal').classList.remove('show');
+});
+document.getElementById('authModal').addEventListener('click', e=>{
+  if(e.target.id==='authModal') document.getElementById('authModal').classList.remove('show');
+});
+document.getElementById('btnSendMagicLink').addEventListener('click', async ()=>{
+  if(!sb){ showToast('เชื่อมต่อ Supabase ไม่สำเร็จ'); return; }
+  const email = document.getElementById('authEmail').value.trim();
+  if(!email || !email.includes('@')){ showToast('กรุณากรอกอีเมลให้ถูกต้อง'); return; }
+  try{
+    const { error } = await sb.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.href.split('#')[0].split('?')[0] } });
+    if(error) throw error;
+    showToast('ส่งลิงก์เข้าสู่ระบบไปที่ '+email+' แล้ว เช็คอีเมลได้เลย');
+  }catch(err){
+    console.error('Magic link error:', err);
+    showToast('ส่งลิงก์ไม่สำเร็จ: '+(err.message||'ลองใหม่อีกครั้ง'));
+  }
+});
+document.getElementById('btnSyncNow').addEventListener('click', syncNow);
+document.getElementById('btnSignOut').addEventListener('click', async ()=>{
+  if(!sb) return;
+  await sb.auth.signOut();
+  showToast('ออกจากระบบแล้ว (ความทรงจำที่ซิงค์ไว้ยังอยู่ในเครื่องนี้)');
+});
+
+initMemoryStore();
+initAuth();
+})();
+</script>
+</body>
+</html>
