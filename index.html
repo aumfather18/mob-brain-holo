@@ -1894,6 +1894,7 @@ if(loadChatStore()){
 }
 
 let chatProvider = 'claude';
+let lastChatError = '';
 const MOB_SYSTEM_PROMPT = 'คุณคือ "ม็อบ" ผู้ช่วย AI ที่จดจำความทรงจำของผู้ใช้และพูดคุยด้วยกันเป็นประจำในแอปบันทึกความทรงจำ ตอบเป็นภาษาไทย เป็นกันเอง กระชับ ตรงประเด็น หากคำถามต้องใช้ข้อมูลปัจจุบันหรือข้อเท็จจริงที่ไม่แน่ใจ ให้ใช้เครื่องมือค้นเว็บช่วยก่อนตอบ';
 
 document.getElementById('apiToggle').addEventListener('click', function(){
@@ -1968,8 +1969,29 @@ async function callClaude(attachment){
     return reply;
   }catch(err){
     console.error('Mob (Claude) chat error:', err);
+    lastChatError = err.message || 'ไม่ทราบสาเหตุ';
     return null;
   }
+}
+
+let cachedGeminiModel = null;
+async function resolveGeminiModel(apiKey){
+  if(cachedGeminiModel) return cachedGeminiModel;
+  try{
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+      headers: { 'x-goog-api-key': apiKey }
+    });
+    const data = await res.json();
+    const candidates = (data.models||[]).filter(m=>
+      (m.supportedGenerationMethods||[]).includes('generateContent') && /flash/i.test(m.name)
+    );
+    const pick = candidates.find(m=>!/preview|exp|deprecated|vision|tts|image/i.test(m.name)) || candidates[0];
+    cachedGeminiModel = pick ? pick.name.replace('models/','') : 'gemini-flash-latest';
+  }catch(err){
+    console.error('Gemini model discovery failed:', err);
+    cachedGeminiModel = 'gemini-flash-latest';
+  }
+  return cachedGeminiModel;
 }
 
 async function callGemini(attachment){
@@ -1990,16 +2012,29 @@ async function callGemini(attachment){
       }
       return { role, parts };
     });
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+    const body = {
+      system_instruction: { parts:[{ text: MOB_SYSTEM_PROMPT }] },
+      contents,
+      tools: [{ google_search: {} }]
+    };
+    let modelId = await resolveGeminiModel(apiKey);
+    let res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+modelId+':generateContent', {
       method:'POST',
       headers: { 'Content-Type':'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        system_instruction: { parts:[{ text: MOB_SYSTEM_PROMPT }] },
-        contents,
-        tools: [{ google_search: {} }]
-      })
+      body: JSON.stringify(body)
     });
-    const data = await res.json();
+    let data = await res.json();
+    if(data.error && /not found|NOT_FOUND/i.test(data.error.status||data.error.message||'')){
+      // cached model id is stale (Google retired/restricted it) — rediscover once and retry
+      cachedGeminiModel = null;
+      modelId = await resolveGeminiModel(apiKey);
+      res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+modelId+':generateContent', {
+        method:'POST',
+        headers: { 'Content-Type':'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify(body)
+      });
+      data = await res.json();
+    }
     if(data.error){ throw new Error(data.error.message || 'Gemini API error'); }
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
     const text = parts.filter(p=>p.text).map(p=>p.text).join('\n').trim();
@@ -2009,6 +2044,7 @@ async function callGemini(attachment){
     return reply;
   }catch(err){
     console.error('Mob (Gemini) chat error:', err);
+    lastChatError = err.message || 'ไม่ทราบสาเหตุ';
     return null;
   }
 }
@@ -2109,7 +2145,7 @@ function sendChat(){
     }else{
       const providerName = chatProvider==='gemini' ? 'Gemini' : 'Claude';
       appendChatMsg(
-        MOB_REPLIES[Math.floor(Math.random()*MOB_REPLIES.length)] + ' (โหมดสำรอง: เชื่อมต่อ ' + providerName + ' ไม่สำเร็จตอนนี้ ลองเช็ค API key ในช่องตั้งค่าอีกครั้ง)',
+        MOB_REPLIES[Math.floor(Math.random()*MOB_REPLIES.length)] + ' (โหมดสำรอง: เชื่อมต่อ ' + providerName + ' ไม่สำเร็จ — ' + (lastChatError||'ไม่ทราบสาเหตุ') + ')',
         'mob'
       );
     }
