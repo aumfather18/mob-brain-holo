@@ -1974,7 +1974,23 @@ async function callClaude(attachment){
   }
 }
 
-let cachedGeminiModel = null;
+const GEMINI_MODEL_KEY = 'mob_gemini_model';
+let cachedGeminiModel = localStorage.getItem(GEMINI_MODEL_KEY) || null;
+
+function rememberGeminiModel(modelId){
+  cachedGeminiModel = modelId;
+  try{ localStorage.setItem(GEMINI_MODEL_KEY, modelId); }catch(e){}
+}
+
+// Google's own "no longer available" errors name the replacement model right in the
+// message text (e.g. "...use models/gemini-3.6-flash..."). Pull that out directly —
+// it's more reliable than guessing, since it reflects whatever Google currently wants
+// used with THIS specific API key, right now.
+function extractSuggestedModelFromError(errMsg, blockedModel){
+  const matches = [...String(errMsg||'').matchAll(/models\/([a-zA-Z0-9._-]+)/g)].map(m=>m[1]);
+  return matches.find(m=>m && m!==blockedModel) || null;
+}
+
 async function resolveGeminiModel(apiKey){
   if(cachedGeminiModel) return cachedGeminiModel;
   try{
@@ -1986,12 +2002,21 @@ async function resolveGeminiModel(apiKey){
       (m.supportedGenerationMethods||[]).includes('generateContent') && /flash/i.test(m.name)
     );
     const pick = candidates.find(m=>!/preview|exp|deprecated|vision|tts|image/i.test(m.name)) || candidates[0];
-    cachedGeminiModel = pick ? pick.name.replace('models/','') : 'gemini-flash-latest';
+    rememberGeminiModel(pick ? pick.name.replace('models/','') : 'gemini-flash-latest');
   }catch(err){
     console.error('Gemini model discovery failed:', err);
-    cachedGeminiModel = 'gemini-flash-latest';
+    rememberGeminiModel('gemini-flash-latest');
   }
   return cachedGeminiModel;
+}
+
+async function callGeminiRequest(apiKey, modelId, body){
+  const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+modelId+':generateContent', {
+    method:'POST',
+    headers: { 'Content-Type':'application/json', 'x-goog-api-key': apiKey },
+    body: JSON.stringify(body)
+  });
+  return res.json();
 }
 
 async function callGemini(attachment){
@@ -2017,25 +2042,26 @@ async function callGemini(attachment){
       contents,
       tools: [{ google_search: {} }]
     };
+
     let modelId = await resolveGeminiModel(apiKey);
-    let res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+modelId+':generateContent', {
-      method:'POST',
-      headers: { 'Content-Type':'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify(body)
-    });
-    let data = await res.json();
-    if(data.error && /not found|NOT_FOUND/i.test(data.error.status||data.error.message||'')){
-      // cached model id is stale (Google retired/restricted it) — rediscover once and retry
-      cachedGeminiModel = null;
-      modelId = await resolveGeminiModel(apiKey);
-      res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+modelId+':generateContent', {
-        method:'POST',
-        headers: { 'Content-Type':'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify(body)
-      });
-      data = await res.json();
+    let data = await callGeminiRequest(apiKey, modelId, body);
+
+    // Self-heal up to twice: if Google says this model is retired/unavailable, it
+    // names the replacement right in the message — switch to that and remember it.
+    let attempts = 0;
+    while(data.error && attempts<2){
+      const errMsg = data.error.message || data.error.status || '';
+      const isModelIssue = /not found|no longer available|not_found/i.test(errMsg);
+      if(!isModelIssue) break;
+      const suggested = extractSuggestedModelFromError(errMsg, modelId) || 'gemini-flash-latest';
+      console.warn('Gemini model "'+modelId+'" unavailable, switching to "'+suggested+'"');
+      modelId = suggested;
+      data = await callGeminiRequest(apiKey, modelId, body);
+      attempts++;
     }
     if(data.error){ throw new Error(data.error.message || 'Gemini API error'); }
+    rememberGeminiModel(modelId); // this model id worked — keep using it next time
+
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
     const text = parts.filter(p=>p.text).map(p=>p.text).join('\n').trim();
     const reply = text || 'ม็อบยังไม่มีคำตอบให้ตอนนี้ ลองถามอีกแบบดูไหมครับ';
