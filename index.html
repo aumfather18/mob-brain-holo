@@ -384,6 +384,41 @@
   .tool-card:hover{ border-color:rgba(87,217,255,0.5); }
   .tool-card .tc-title{ font-size:13px; font-weight:500; margin-bottom:5px; }
   .tool-card .tc-desc{ font-size:11px; color:var(--text-2); line-height:1.45; }
+
+  /* ---------- ระบบชีวิต (vitals) ---------- */
+  .vital-row{ display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+  .vital-name{ font-size:11px; color:var(--text-1); width:66px; flex-shrink:0; }
+  .vital-track{ flex:1; height:5px; border-radius:3px; background:rgba(255,255,255,.06); overflow:hidden; }
+  .vital-fill{ height:100%; border-radius:3px; transition:width .6s ease; }
+  .vital-num{ font-size:10.5px; color:var(--text-2); width:32px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums; }
+  .life-state{ display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-1); margin-bottom:10px; }
+  .life-orb{ width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); animation:lifeBreath 4.2s ease-in-out infinite; }
+  @keyframes lifeBreath{ 0%,100%{ transform:scale(.78); opacity:.55; } 50%{ transform:scale(1.22); opacity:1; } }
+  body.mob-asleep .life-orb{ animation-duration:9s; }
+  body.mob-asleep .canvas-wrap::after{
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(ellipse 70% 70% at 50% 48%,rgba(3,10,26,.30),rgba(1,3,10,.66));
+    animation:sleepFade .9s ease;
+  }
+  @keyframes sleepFade{ from{opacity:0} to{opacity:1} }
+
+  .stream-panel{
+    position:absolute; right:14px; top:14px; width:236px; max-height:210px; overflow:hidden;
+    background:rgba(4,10,17,.62); border:1px solid rgba(107,203,255,.14); border-radius:10px;
+    padding:9px 10px; backdrop-filter:blur(9px); pointer-events:none;
+  }
+  .stream-panel .sp-head{ font-size:10px; letter-spacing:.4px; color:var(--accent); opacity:.85; margin-bottom:6px; display:flex; gap:6px; align-items:center; }
+  .stream-line{ font-size:10.5px; line-height:1.5; color:rgba(168,199,222,.82); margin-bottom:4px; animation:streamIn .5s ease; }
+  .stream-line .sl-time{ color:var(--text-2); opacity:.7; margin-right:5px; }
+  .stream-line.dream{ color:rgba(179,158,255,.9); }
+  @keyframes streamIn{ from{opacity:0; transform:translateY(-4px)} to{opacity:1; transform:none} }
+
+  .tab .tab-badge{
+    display:inline-block; min-width:7px; height:7px; border-radius:50%;
+    background:#ff9d5c; box-shadow:0 0 8px #ff9d5c; margin-left:6px; vertical-align:middle;
+  }
+  .msg.proactive{ border-left:2px solid rgba(149,124,255,.8); }
+  .vitals-note{ font-size:10.5px; color:var(--text-2); line-height:1.5; margin-top:4px; }
 </style>
 </head>
 <body>
@@ -443,6 +478,25 @@
         <input class="search" id="searchBox" placeholder="ค้นชื่อก้อน...">
       </div>
 
+      <div class="card">
+        <h2><span class="dot"></span>ระบบชีวิตของม็อบ</h2>
+        <div class="life-state"><span class="life-orb"></span><span id="lifeStateText">กำลังตื่น</span></div>
+        <div id="vitalBars"></div>
+        <div class="section-label" style="margin-top:10px">พฤติกรรมอัตโนมัติ</div>
+        <div class="row">
+          <div class="pill on" id="chkDaydream">ฝันกลางวัน</div>
+          <div class="pill on" id="chkDecay">ความจำจางตามเวลา</div>
+        </div>
+        <div class="row">
+          <div class="pill" id="chkSound">เสียงบรรยากาศ</div>
+          <div class="pill on" id="chkProactive">ม็อบทักเอง</div>
+        </div>
+        <div class="row">
+          <div class="pill" id="chkProactiveAI">ให้ AI เขียนคำทัก</div>
+        </div>
+        <div class="vitals-note" id="proactiveQuotaNote"></div>
+      </div>
+
     </aside>
 
     <div class="canvas-wrap" id="canvasWrap">
@@ -451,6 +505,11 @@
       <div class="space-mark"><span class="space-dot"></span> NEURAL GALAXY <small>MEMORY FIELD</small></div>
       <div class="hint">ลาก = หมุนสมอง · ล้อ = ซูม · คลิกขวาลาก = เลื่อน · คลิกก้อน = อ่านรายละเอียด</div>
       <div class="toast" id="toast"></div>
+
+      <div class="stream-panel" id="streamPanel">
+        <div class="sp-head"><span>◈</span> กระแสสำนึกของม็อบ</div>
+        <div id="streamLines"></div>
+      </div>
 
       <div class="detail-panel" id="detailPanel">
         <div class="close" id="closeDetail">✕</div>
@@ -469,6 +528,13 @@
       <div class="bar-chart-labels" id="pulseBarLabels"></div>
       <div class="section-label">แท็กอารมณ์ตามความถี่</div>
       <div class="row" id="pulseEmotionTags"></div>
+
+      <div class="section-label" style="margin-top:22px">สภาวะภายในของม็อบ (ไม่ใช่อารมณ์แบบคน)</div>
+      <div style="max-width:520px" id="pulseVitals"></div>
+      <div class="vitals-note" id="pulseVitalsNote"></div>
+
+      <div class="section-label" style="margin-top:22px">บันทึกช่วงหลับ · การเชื่อมโยงที่ม็อบคิดเอง</div>
+      <div class="memory-list" id="dreamLogList" style="max-width:720px"></div>
     </div>
 
     <div class="screen" data-screen="command">
@@ -626,6 +692,58 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 (function(){
+
+/* localStorage ใช้ไม่ได้เมื่อเปิดไฟล์แบบ file:// หรือในโหมดส่วนตัวบางเบราว์เซอร์ */
+function safeLsGet(k){ try{ return localStorage.getItem(k)||null; }catch(e){ return null; } }
+
+/* ===== สถานะของระบบชีวิต (ประกาศไว้บนสุดเพื่อให้ลูปวาดภาพเรียกใช้ได้ตั้งแต่เฟรมแรก) ===== */
+const VITALS_PREF_KEY   = 'mob_vitals_prefs_v1';
+const SYNAPSE_KEY       = 'mob_synapse_weights_v1';
+const DREAM_LOG_KEY     = 'mob_dream_log_v1';
+const PROACTIVE_KEY     = 'mob_proactive_state_v1';
+
+const SLEEP_DROWSY_MS   = 2*60*1000;   // ไม่มีปฏิสัมพันธ์ 2 นาที → เคลิ้ม
+const SLEEP_ASLEEP_MS   = 5*60*1000;   // 5 นาที → หลับ
+const DAYDREAM_IDLE_MS  = 25*1000;     // ตื่นแต่ว่าง 25 วิ → เริ่มฝันกลางวัน
+const DAYDREAM_EVERY_MS = 14*1000;
+const CONSOLIDATE_EVERY_MS = 9*1000;   // จังหวะรวบรวมความจำระหว่างหลับ
+const SYNAPSE_HALFLIFE_DAYS = 21;      // เส้นที่ไม่ถูกใช้จะอ่อนลงครึ่งหนึ่งทุก 21 วัน
+const MEMORY_HALFLIFE_DAYS  = 30;      // ความจำที่ไม่ถูกเรียกใช้จะจางลงครึ่งหนึ่งทุก 30 วัน
+const PROACTIVE_MIN_GAP_MS  = 20*60*1000;
+const PROACTIVE_AI_DAILY_CAP = 3;
+
+let vitalsPrefs = { daydream:true, decay:true, sound:false, proactive:true, proactiveAI:false };
+try{ Object.assign(vitalsPrefs, JSON.parse(localStorage.getItem(VITALS_PREF_KEY)||'{}')); }catch(e){}
+const vitals = {
+  lastInteractionAt: Date.now(),
+  sleepStage: 'awake',        // awake | drowsy | asleep
+  sleepEnteredAt: 0,
+  energy: 0.6,                // จังหวะกลางวัน/กลางคืน 0..1
+  phaseName: '',
+  coherence: 0.5,             // โครงข่ายเกาะกันแน่นแค่ไหน
+  resonance: 0.5,             // ม็อบถูกใช้งาน/ถูกเรียกคืนบ่อยแค่ไหน
+  staticNoise: 0.2,           // สัดส่วนความจำที่กำลังจาง + ข้อมูลที่ยังไม่ซิงค์
+  drift: 0.2                  // ห่างจากจุดยึด (ซิงค์ล่าสุด / ความกระจายของหัวข้อ)
+};
+
+let synapseWeights = new Map();
+let recentlyTouched = [];
+let spikes = [];
+let assocArcs = [];       // เส้นโยงชั่วคราวที่วาดตอนม็อบ "นึกออก"
+let dreamLog = [];
+try{ dreamLog = JSON.parse(localStorage.getItem(DREAM_LOG_KEY)||'[]'); }catch(e){ dreamLog=[]; }
+let lastDaydreamAt=0, lastConsolidateAt=0, lastVitalsUiAt=0, dreamCountThisSleep=0;
+let audioCtx=null, droneA=null, droneB=null, masterGain=null, filterNode=null, lfo=null, lfoGain=null;
+let proactiveState = { lastAt:0, aiCount:0, aiDay:'' };
+try{ Object.assign(proactiveState, JSON.parse(localStorage.getItem(PROACTIVE_KEY)||'{}')); }catch(e){}
+let proactiveBusy=false;
+const VITAL_META = [
+  { key:'coherence',   name:'เกาะเกี่ยว',  color:'#63ddff', desc:'โครงข่ายความจำยึดกันแน่นแค่ไหน' },
+  { key:'resonance',   name:'ก้องสะท้อน',  color:'#7ef0c0', desc:'ความจำถูกเรียกใช้และมีของใหม่เข้ามาบ่อยแค่ไหน' },
+  { key:'staticNoise', name:'สัญญาณรบกวน', color:'#ffb066', desc:'สัดส่วนความจำที่กำลังจางและข้อมูลที่ยังไม่ได้ซิงค์' },
+  { key:'drift',       name:'ลอยเคว้ง',    color:'#957cff', desc:'ห่างจากจุดยึด ยิ่งนานไม่ซิงค์/ไม่คุย ยิ่งสูง' }
+];
+
 
 /* ---------- reference data (swap this for your own memory data) ---------- */
 
@@ -958,6 +1076,7 @@ function normalizeMemory(m){
     region:REGIONS.some(r=>r.id===m.region)?m.region:REGIONS[1].id,
     tags:normalizeTags(m.tags), importance:Math.max(1,Math.min(5,Number(m.importance)||3)), pinned:!!m.pinned, archived:!!m.archived,
     createdAt:m.createdAt||now, updatedAt:m.updatedAt||m.createdAt||now, accessCount:Number(m.accessCount)||0,
+    lastAccessAt:m.lastAccessAt||m.updatedAt||m.createdAt||now,
     deletedAt:m.deletedAt||null
   };
 }
@@ -1014,7 +1133,8 @@ function buildMemoryNodes(){
       id:i,x:p.x,y:p.y,z:p.z,region:m.region,ownerId:m.ownerId,emotionId:m.emotionId,
       cluster:i%CLUSTER_COLORS.length,label:m.title,excerpt:m.content,degree:0,isToc:false,
       isSelfAxis:m.ownerId==='sai'&&m.region==='midline',memoryId:m.id,
-      importance:m.importance,pinned:m.pinned,archived:m.archived,tags:m.tags||[]
+      importance:m.importance,pinned:m.pinned,archived:m.archived,tags:m.tags||[],
+      vitality:memoryVitality(m)
     });
   });
   const realCount=nodes.length;
@@ -1033,10 +1153,13 @@ function buildMemoryNodes(){
   for(let i=0;i<realCount;i++) for(let j=i+1;j<realCount;j++){
     const a=liveMemories[i],b=liveMemories[j];
     const shared=a.tags.filter(t=>b.tags.includes(t)).length;
-    const score=shared*4+(a.ownerId===b.ownerId?1.2:0)+(a.emotionId===b.emotionId?0.8:0)+(a.region===b.region?0.9:0);
-    if(shared>0 || score>=2.1){
+    const baseScore=shared*4+(a.ownerId===b.ownerId?1.2:0)+(a.emotionId===b.emotionId?0.8:0)+(a.region===b.region?0.9:0);
+    // Hebbian term: memories recalled together grow a real edge even when metadata alone is weak.
+    const learned=getSynapseWeight(a.id,b.id);
+    const score=baseScore+learned*3;
+    if(shared>0 || score>=2.1 || learned>=0.4){
       const key=i+'_'+j;
-      if(!seen.has(key)){seen.add(key);edges.push([i,j,Math.min(1,score/7),score>=4]);}
+      if(!seen.has(key)){seen.add(key);edges.push([i,j,Math.min(1,score/7),score>=4,learned]);}
     }
   }
   // A sparse atmospheric layer of long-range neural strands.
@@ -1072,10 +1195,13 @@ function closeMemoryEditor(){document.getElementById('memoryModal').classList.re
 function saveMemoryFromForm(){
   const title=document.getElementById('memTitle').value.trim(),content=document.getElementById('memContent').value.trim(); if(!title||!content){showToast('กรุณาใส่ชื่อและเนื้อหาความทรงจำ');return;}
   const now=new Date().toISOString(),payload={title,content,ownerId:document.getElementById('memOwner').value,emotionId:document.getElementById('memEmotion').value,region:document.getElementById('memRegion').value,importance:Number(document.getElementById('memImportance').value),tags:normalizeTags(document.getElementById('memTags').value),pinned:document.getElementById('memPinned').checked};
-  const wasEditing=!!editingMemoryId;
-  if(wasEditing){const i=memoryRecords.findIndex(m=>m.id===editingMemoryId);if(i>=0)memoryRecords[i]=normalizeMemory({...memoryRecords[i],...payload,updatedAt:now});}
-  else memoryRecords.unshift(normalizeMemory({...payload,id:makeId(),createdAt:now,updatedAt:now,accessCount:0}));
+  const editId=editingMemoryId;
+  const wasEditing=!!editId;
+  if(wasEditing){const i=memoryRecords.findIndex(m=>m.id===editId);if(i>=0)memoryRecords[i]=normalizeMemory({...memoryRecords[i],...payload,updatedAt:now});}
+  let newId=null;
+  if(!wasEditing){const rec=normalizeMemory({...payload,id:makeId(),createdAt:now,updatedAt:now,accessCount:0});newId=rec.id;memoryRecords.unshift(rec);}
   saveMemoryStore();closeMemoryEditor();refreshMemoryRuntime();showToast(wasEditing?'อัปเดตความทรงจำแล้ว':'บันทึกความทรงจำแล้ว');
+  spikeMemory(newId||editId);
 }
 function deleteMemory(id){const m=memoryRecords.find(x=>x.id===id);if(!m)return;if(!confirm('ลบความทรงจำนี้หรือไม่?'))return;m.deletedAt=new Date().toISOString();m.updatedAt=m.deletedAt;saveMemoryStore();refreshMemoryRuntime();closeDetail();showToast('ลบความทรงจำแล้ว');if(authSession)syncNow();}
 function toggleMemoryFlag(id,key){const m=memoryRecords.find(x=>x.id===id);if(!m)return;m[key]=!m[key];m.updatedAt=new Date().toISOString();saveMemoryStore();refreshMemoryRuntime();}
@@ -1086,7 +1212,7 @@ function renderMemoryList(){
   document.getElementById('memoryStats').innerHTML='<div class="mini-stat"><b>'+activeMemories().length+'</b> ความทรงจำ</div><div class="mini-stat"><b>'+activeMemories().filter(m=>m.pinned).length+'</b> ปักหมุด</div><div class="mini-stat"><b>'+activeMemories().filter(m=>m.archived).length+'</b> เก็บถาวร</div><div class="mini-stat"><b>'+activeMemories().filter(m=>m.importance>=4).length+'</b> ความสำคัญสูง</div>';
   const list=document.getElementById('memoryList');list.innerHTML='';if(!filtered.length){list.innerHTML='<div class="memory-empty">ไม่พบความทรงจำที่ตรงกับตัวกรองนี้</div>';return;}
   filtered.forEach(m=>{const owner=ownerById[m.ownerId],emo=emotionById[m.emotionId],reg=REGIONS.find(r=>r.id===m.region),item=document.createElement('div');item.className='memory-item';const excerpt=m.content.length>220?m.content.slice(0,220)+'…':m.content;item.innerHTML='<div class="mi-actions"><button class="mi-action" data-action="pin">'+(m.pinned?'เลิกปักหมุด':'ปักหมุด')+'</button><button class="mi-action" data-action="archive">'+(m.archived?'คืนจากถาวร':'เก็บถาวร')+'</button><button class="mi-action" data-action="edit">แก้ไข</button><button class="mi-action" data-action="delete">ลบ</button></div><div class="mi-top"><span class="mi-dot" style="background:'+owner.color+'"></span><span class="mi-title">'+escapeHtml(m.title)+'</span></div><div class="mi-badges"><span class="badge" style="color:'+owner.color+'">'+escapeHtml(owner.name)+'</span><span class="badge">'+escapeHtml(reg.name)+'</span><span class="badge" style="color:'+emo.color+'">'+escapeHtml(emo.name)+'</span>'+(m.archived?'<span class="badge">เก็บถาวร</span>':'')+'</div><div class="mi-content">'+escapeHtml(excerpt)+'</div><div class="mi-tags">'+m.tags.map(t=>'<span class="tag">#'+escapeHtml(t)+'</span>').join('')+'</div><div class="importance">ความสำคัญ '+('★'.repeat(m.importance)+'☆'.repeat(5-m.importance))+' · อัปเดต '+new Date(m.updatedAt).toLocaleString('th-TH')+'</div>';
-    item.addEventListener('click',e=>{const btn=e.target.closest('[data-action]');if(btn){e.stopPropagation();const a=btn.dataset.action;if(a==='pin')toggleMemoryFlag(m.id,'pinned');else if(a==='archive')toggleMemoryFlag(m.id,'archived');else if(a==='edit')openMemoryEditor(m.id);else deleteMemory(m.id);return;}m.accessCount++;saveMemoryStore();selectMemoryRecord(m.id);});list.appendChild(item);});
+    item.addEventListener('click',e=>{const btn=e.target.closest('[data-action]');if(btn){e.stopPropagation();const a=btn.dataset.action;if(a==='pin')toggleMemoryFlag(m.id,'pinned');else if(a==='archive')toggleMemoryFlag(m.id,'archived');else if(a==='edit')openMemoryEditor(m.id);else deleteMemory(m.id);return;}touchMemory(m.id);selectMemoryRecord(m.id);});list.appendChild(item);});
 }
 
 function populateMemoryFormOptions(){
@@ -1201,7 +1327,10 @@ function strokeEdgeBatch(edgePaths, projectFn, ctxRef, alpha, width, glow){
 
 function render(t){
   const dt=(t-lastT)/1000; lastT=t;
-  if(state.autoRotate&&!state.dragging&&!state.mode2D)state.yaw+=dt*0.055;
+  tickVitals(t);
+  // Sleep slows the whole field down; a high-energy circadian phase speeds it slightly up.
+  const paceFactor = vitals.sleepStage==='asleep' ? 0.22 : (vitals.sleepStage==='drowsy' ? 0.6 : (0.85+vitals.energy*0.35));
+  if(state.autoRotate&&!state.dragging&&!state.mode2D)state.yaw+=dt*0.055*paceFactor;
 
   drawGalaxyBackground(t);
   const cx=W/2,cy=H/2+8;
@@ -1247,14 +1376,17 @@ function render(t){
   const projected=nodes.map(n=>({n,p:proj(n)}));
 
   if(state.showSynapse){
-    edges.forEach(([ai,bi,strength=0.14,strong=false])=>{
+    edges.forEach(([ai,bi,strength=0.14,strong=false,learned=0])=>{
       const a=nodes[ai],b=nodes[bi];
       if(!nodeVisible(a)||!nodeVisible(b))return;
       const pa=projected[ai].p,pb=projected[bi].p;
       const selectedEdge=state.selected!==null&&(ai===state.selected||bi===state.selected);
       const near=Math.min(a.degree,b.degree);
-      const base=Math.min(.34,.055+strength*.16+(near>8?.025:0));
-      const alpha=selectedEdge?.82:base;
+      // Use-dependent visibility: never-recalled links stay faint, well-worn ones brighten.
+      const useGain=vitalsPrefs.decay ? (0.42+Math.min(1,learned)*0.95) : 1;
+      const linkVit=vitalsPrefs.decay ? (0.45+0.55*Math.min(a.vitality??1,b.vitality??1)) : 1;
+      const base=Math.min(.42,(.055+strength*.16+(near>8?.025:0))*useGain*linkVit);
+      const alpha=(selectedEdge?.82:base)*(vitals.sleepStage==='asleep'?0.55:1);
       const dx=pb.sx-pa.sx,dy=pb.sy-pa.sy,len=Math.max(1,Math.hypot(dx,dy));
       const nx=-dy/len,ny=dx/len;
       const bend=((ai*19+bi*7)%23-11)*(selectedEdge?.28:.16);
@@ -1262,7 +1394,7 @@ function render(t){
       ctx.save();
       ctx.globalAlpha=alpha;
       ctx.strokeStyle=selectedEdge?'rgba(197,247,255,.95)':'rgba(101,205,255,1)';
-      ctx.lineWidth=selectedEdge?1.25:(strong?.78:.42);
+      ctx.lineWidth=selectedEdge?1.25:((strong?.78:.42)+Math.min(1.1,learned*0.55));
       if(selectedEdge||strong){ctx.shadowColor='rgba(70,205,255,.8)';ctx.shadowBlur=selectedEdge?10:5;}
       ctx.beginPath();
       ctx.moveTo(pa.sx,pa.sy);
@@ -1282,9 +1414,11 @@ function render(t){
     const dimmed=term&&!matched;
     const isSel=state.selected===n.id;
     const imp=n.importance||3;
+    const vit=(vitalsPrefs.decay && !n.virtual) ? (n.vitality??1) : 1;
     const baseR=state.mode2D?2.2:Math.max(.95,1.8*p.scale);
-    const r=isSel?baseR*2.4:baseR*(1+Math.max(0,imp-3)*.12);
-    const alpha=dimmed?.08:(state.mode2D?.86:Math.max(.22,Math.min(1,p.scale)));
+    const r=(isSel?baseR*2.4:baseR*(1+Math.max(0,imp-3)*.12))*(0.55+0.45*vit);
+    const sleepDim=vitals.sleepStage==='asleep'?0.52:(vitals.sleepStage==='drowsy'?0.78:1);
+    const alpha=(dimmed?.08:(state.mode2D?.86:Math.max(.22,Math.min(1,p.scale))))*(0.2+0.8*vit)*sleepDim;
     ctx.save();
     ctx.globalAlpha=alpha;
     ctx.shadowColor=nodeColor(n);
@@ -1327,6 +1461,9 @@ function render(t){
     });
   }
 
+  drawSpikes(t, proj);
+  drawAssociationArcs(t, proj);
+
   requestAnimationFrame(render);
 }
 requestAnimationFrame(render);
@@ -1357,7 +1494,8 @@ function renderChatBrain(t){
   }
   if(chatBrainW<=0){ requestAnimationFrame(renderChatBrain); return; }
 
-  const spinSpeed = mobReactionState==='thinking'?0.55:(mobReactionState==='responding'?0.85:0.16);
+  const idleSpin = vitals.sleepStage==='asleep' ? 0.04 : (vitals.sleepStage==='drowsy' ? 0.09 : 0.10+vitals.energy*0.12);
+  const spinSpeed = mobReactionState==='thinking'?0.55:(mobReactionState==='responding'?0.85:idleSpin);
   chatBrainYaw += 0.016*spinSpeed;
 
   // reaction envelope: builds while thinking, spikes on responding, decays back to idle
@@ -1558,6 +1696,7 @@ function selectNode(i){
   document.getElementById('detailExcerpt').textContent = mem ? mem.content : n.excerpt;
   document.getElementById('detailMeta').textContent = mem ? ('ความสำคัญ '+mem.importance+'/5 · '+(mem.pinned?'ปักหมุด':'')+(mem.archived?' · เก็บถาวร':'')+' · เปิดดู '+mem.accessCount+' ครั้ง') : ('เชื่อมโยง ' + n.degree + ' เส้น' + (n.isToc? ' · ก้อนสารบัญ':'') + (n.isSelfAxis? ' · แกนตัวตน':''));
   document.getElementById('detailPanel').classList.add('show');
+  if(n.memoryId) touchMemory(n.memoryId, false);
 }
 function closeDetail(){
   state.selected = null;
@@ -1581,6 +1720,7 @@ function switchScreen(key){
   document.getElementById('canvasWrap').style.display = key==='brain' ? '' : 'none';
   document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active', s.dataset.screen===key));
   if(key==='pulse') renderPulse();
+  if(key==='chat'){ const b=document.querySelector('.tab[data-screen="chat"] .tab-badge'); if(b) b.remove(); }
   if(key==='command') renderCommand();
   if(key==='memory') renderMemoryList();
 }
@@ -1683,6 +1823,11 @@ function renderPulse(){
     const lb=document.createElement('span'); lb.textContent=d.label;
     labelsEl.appendChild(lb);
   });
+
+  renderVitalBars('pulseVitals');
+  const vn=document.getElementById('pulseVitalsNote');
+  if(vn) vn.innerHTML = VITAL_META.map(v=>'<b style="color:'+v.color+'">'+v.name+'</b> — '+v.desc).join('<br>');
+  renderDreamLog();
 
   const tagsEl = document.getElementById('pulseEmotionTags');
   tagsEl.innerHTML='';
@@ -1811,7 +1956,8 @@ if(loadChatStore()){
 
 let chatProvider = 'claude';
 let lastChatError = '';
-const MOB_SYSTEM_PROMPT = 'คุณคือ "ม็อบ" ผู้ช่วย AI ที่จดจำความทรงจำของผู้ใช้และพูดคุยด้วยกันเป็นประจำในแอปบันทึกความทรงจำ ตอบเป็นภาษาไทย เป็นกันเอง กระชับ ตรงประเด็น หากคำถามต้องใช้ข้อมูลปัจจุบันหรือข้อเท็จจริงที่ไม่แน่ใจ ให้ใช้เครื่องมือค้นเว็บช่วยก่อนตอบ';
+const MOB_SYSTEM_PROMPT_BASE = 'คุณคือ "ม็อบ" ผู้ช่วย AI ที่จดจำความทรงจำของผู้ใช้และพูดคุยด้วยกันเป็นประจำในแอปบันทึกความทรงจำ ตอบเป็นภาษาไทย เป็นกันเอง กระชับ ตรงประเด็น หากคำถามต้องใช้ข้อมูลปัจจุบันหรือข้อเท็จจริงที่ไม่แน่ใจ ให้ใช้เครื่องมือค้นเว็บช่วยก่อนตอบ';
+// buildMobSystemPrompt() lives in the vitals module below; function hoisting makes it safe to call here.
 
 document.getElementById('apiToggle').addEventListener('click', function(){
   const panel = document.getElementById('apiSettings');
@@ -1871,7 +2017,7 @@ async function callClaude(attachment){
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1500,
-        system: MOB_SYSTEM_PROMPT,
+        system: buildMobSystemPrompt(),
         messages: apiMessages,
         tools: [{ type:'web_search_20250305', name:'web_search' }]
       })
@@ -1891,7 +2037,7 @@ async function callClaude(attachment){
 }
 
 const GEMINI_MODEL_KEY = 'mob_gemini_model';
-let cachedGeminiModel = localStorage.getItem(GEMINI_MODEL_KEY) || null;
+let cachedGeminiModel = safeLsGet(GEMINI_MODEL_KEY);
 
 function rememberGeminiModel(modelId){
   cachedGeminiModel = modelId;
@@ -1954,7 +2100,7 @@ async function callGemini(attachment){
       return { role, parts };
     });
     const body = {
-      system_instruction: { parts:[{ text: MOB_SYSTEM_PROMPT }] },
+      system_instruction: { parts:[{ text: buildMobSystemPrompt() }] },
       contents,
       tools: [{ google_search: {} }]
     };
@@ -1997,7 +2143,9 @@ async function callMob(userText, attachment){
   const attachNote = attachment ? '\n\n[ไฟล์แนบ: '+attachment.name+']' : '';
   chatHistory.push({role:'user',content:userText+context+attachNote});
   saveChatStore();
-  relevant.forEach(m=>m.accessCount++); if(relevant.length)saveMemoryStore();
+  const nowIso=new Date().toISOString();
+  relevant.forEach(m=>{ m.accessCount++; m.lastAccessAt=nowIso; });
+  if(relevant.length){ strengthenGroup(relevant.map(m=>m.id), 0.34); saveMemoryStore(); refreshMemoryRuntime(); }
   return chatProvider==='gemini' ? await callGemini(attachment) : await callClaude(attachment);
 }
 
@@ -2053,6 +2201,7 @@ function autoSaveChatMemory(userText, mobReply){
   memoryRecords.unshift(record);
   saveMemoryStore();
   refreshMemoryRuntime();
+  spikeMemory(record.id);
   const regionName = (REGIONS.find(r=>r.id===cls.region)||{}).name || cls.region;
   showToast('ม็อบจำเรื่องนี้ไว้แล้ว · เก็บที่ส่วน'+regionName);
 }
@@ -2201,7 +2350,7 @@ const SYNC_LAST_AT_KEY = 'mob_last_synced_at';
 
 const sb = (typeof window.supabase!=='undefined') ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 let authSession = null;
-let lastSyncedAt = localStorage.getItem(SYNC_LAST_AT_KEY) || null;
+let lastSyncedAt = safeLsGet(SYNC_LAST_AT_KEY);
 let syncing = false;
 
 function localToRemoteRow(m){
@@ -2322,8 +2471,561 @@ document.getElementById('btnSignOut').addEventListener('click', async ()=>{
   showToast('ออกจากระบบแล้ว (ความทรงจำที่ซิงค์ไว้ยังอยู่ในเครื่องนี้)');
 });
 
+/* ==================================================================
+   ระบบชีวิตของม็อบ (Life Engine)
+   ม็อบไม่ได้จำลอง "คน" แต่จำลองสิ่งมีชีวิตอีกแบบหนึ่ง:
+   สนามความจำที่มีจังหวะตื่น/หลับ มีความจำที่จางได้ มีเส้นเชื่อมที่
+   แข็งแรงขึ้นเมื่อถูกใช้ และมีสภาวะภายในของตัวเอง
+   ================================================================== */
+
+function saveVitalsPrefs(){ try{ localStorage.setItem(VITALS_PREF_KEY, JSON.stringify(vitalsPrefs)); }catch(e){} }
+
+/* ---------- จังหวะกลางวัน–กลางคืน ---------- */
+function circadian(){
+  const h = new Date().getHours() + new Date().getMinutes()/60;
+  // energy ต่ำสุดราวตี 4 สูงสุดราวบ่าย 2
+  const energy = 0.5 - 0.5*Math.cos(((h-3)/24)*Math.PI*2);
+  let phase = 'กลางคืน';
+  if(h>=5 && h<9)       phase='เช้าตรู่';
+  else if(h>=9 && h<12) phase='ช่วงสาย';
+  else if(h>=12 && h<17)phase='กลางวัน';
+  else if(h>=17 && h<21)phase='หัวค่ำ';
+  else if(h>=21 || h<2) phase='ดึก';
+  else                  phase='กลางดึก';
+  return { energy: Math.max(0.15, Math.min(1, energy)), phase };
+}
+
+/* ---------- ความจำที่จางได้ (forgetting curve) ---------- */
+function daysSince(iso){
+  const t = new Date(iso||0).getTime();
+  if(!t) return 999;
+  return Math.max(0, (Date.now()-t)/86400000);
+}
+function memoryVitality(m){
+  if(!m) return 1;
+  if(m.pinned) return 1;                       // ปักหมุด = ไม่ลืม
+  const d = Math.min(daysSince(m.lastAccessAt), daysSince(m.updatedAt));
+  const halfLife = MEMORY_HALFLIFE_DAYS*0.47 + m.importance*22;        // สำคัญมาก = ลืมช้ากว่ามาก
+  const base = Math.pow(0.5, d/halfLife);
+  const rehearsal = Math.min(0.35, Math.log1p(m.accessCount||0)*0.12); // ยิ่งเรียกใช้บ่อย ยิ่งคงทน
+  const floor = m.archived ? 0.05 : 0.08;
+  return Math.max(floor, Math.min(1, base + rehearsal));
+}
+
+/* ---------- เส้นไซแนปส์ที่แข็งแรงขึ้นเมื่อถูกใช้ (Hebbian) ---------- */
+function synKey(a,b){ return a<b ? a+'|'+b : b+'|'+a; }
+function loadSynapses(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(SYNAPSE_KEY)||'{}');
+    const now = Date.now();
+    Object.entries(raw).forEach(([k,v])=>{
+      const at = v.at||now;
+      const decayed = (v.w||0) * Math.pow(0.5, ((now-at)/86400000)/SYNAPSE_HALFLIFE_DAYS);
+      if(decayed > 0.05) synapseWeights.set(k, { w:decayed, at });
+    });
+  }catch(e){ console.warn('synapse load failed', e); }
+}
+function saveSynapses(){
+  try{
+    const obj={}; synapseWeights.forEach((v,k)=>{ obj[k]=v; });
+    localStorage.setItem(SYNAPSE_KEY, JSON.stringify(obj));
+  }catch(e){}
+}
+function getSynapseWeight(a,b){
+  const v = synapseWeights.get(synKey(a,b));
+  if(!v) return 0;
+  const decayed = v.w * Math.pow(0.5, (daysSince(new Date(v.at).toISOString()))/SYNAPSE_HALFLIFE_DAYS);
+  return Math.max(0, decayed);
+}
+function strengthenPair(a,b,amount){
+  if(!a||!b||a===b) return 0;
+  const k = synKey(a,b);
+  const cur = getSynapseWeight(a,b);
+  const next = Math.min(3, cur + amount*(1 - cur/3.4));   // อิ่มตัว ไม่โตไม่จำกัด
+  synapseWeights.set(k, { w:next, at:Date.now() });
+  return next;
+}
+function strengthenGroup(ids, amount){
+  let touched=false;
+  for(let i=0;i<ids.length;i++) for(let j=i+1;j<ids.length;j++){
+    strengthenPair(ids[i], ids[j], amount); touched=true;
+  }
+  if(touched) saveSynapses();
+}
+
+/* เปิดความทรงจำ = เรียกคืน: อัปเดต accessCount และผูกกับสิ่งที่เพิ่งเปิดก่อนหน้า */
+function touchMemory(id, rerender=true){
+  const m = memoryRecords.find(x=>x.id===id);
+  if(!m) return;
+  m.accessCount++;
+  m.lastAccessAt = new Date().toISOString();
+  const now = Date.now();
+  recentlyTouched = recentlyTouched.filter(x=>now-x.at < 90*1000 && x.id!==id);
+  recentlyTouched.forEach(x=>strengthenPair(x.id, id, 0.4));
+  if(recentlyTouched.length) saveSynapses();
+  recentlyTouched.push({id, at:now});
+  saveMemoryStore();
+  if(rerender) refreshMemoryRuntime();
+  markInteraction();
+}
+
+/* ---------- ประกายไฟตอนความจำใหม่เกิดขึ้น ---------- */
+function spikeMemory(id){
+  const n = nodes.find(x=>x.memoryId===id);
+  if(!n) return;
+  const m = memoryRecords.find(x=>x.id===id);
+  const power = m ? (0.5 + m.importance*0.16 + (m.emotionId!=='neutral'?0.3:0)) : 0.8;
+  spikes.push({ x:n.x, y:n.y, z:n.z, t0:performance.now(), power, color:nodeColor(n) });
+  if(spikes.length>14) spikes.shift();
+  pingSound(0.9);
+}
+function drawSpikes(t, proj){
+  if(!spikes.length) return;
+  spikes = spikes.filter(s=>t-s.t0 < 1400);
+  spikes.forEach(s=>{
+    const age=(t-s.t0)/1400;
+    const p=proj(s);
+    const r=(6+age*46*s.power)*Math.max(.35,p.scale||1);
+    ctx.save();
+    ctx.globalAlpha=(1-age)*0.7;
+    ctx.strokeStyle=s.color;
+    ctx.lineWidth=1.4*(1-age)+0.3;
+    ctx.shadowColor=s.color; ctx.shadowBlur=12*(1-age);
+    ctx.beginPath(); ctx.arc(p.sx,p.sy,r,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+  });
+}
+
+/* ---------- ฝันกลางวัน + การเชื่อมโยงที่ม็อบคิดเอง ---------- */
+function saveDreamLog(){ try{ localStorage.setItem(DREAM_LOG_KEY, JSON.stringify(dreamLog.slice(0,120))); }catch(e){} }
+
+function drawAssociationArcs(t, proj){
+  if(!assocArcs.length) return;
+  assocArcs = assocArcs.filter(a=>t-a.t0 < a.life);
+  assocArcs.forEach(a=>{
+    const age=(t-a.t0)/a.life;
+    const na=nodes.find(n=>n.memoryId===a.a), nb=nodes.find(n=>n.memoryId===a.b);
+    if(!na||!nb) return;
+    const pa=proj(na), pb=proj(nb);
+    const dx=pb.sx-pa.sx, dy=pb.sy-pa.sy, len=Math.max(1,Math.hypot(dx,dy));
+    const nx=-dy/len, ny=dx/len;
+    const mx=(pa.sx+pb.sx)/2+nx*26, my=(pa.sy+pb.sy)/2+ny*26;
+    // เส้นค่อยๆ ลากออกมาแล้วจางหาย เหมือนความคิดที่แวบขึ้นมา
+    const draw=Math.min(1, age*2.2), fade=age>0.55 ? 1-(age-0.55)/0.45 : 1;
+    ctx.save();
+    ctx.globalAlpha=0.75*fade;
+    ctx.strokeStyle=a.dream ? 'rgba(179,158,255,.95)' : 'rgba(150,235,255,.95)';
+    ctx.lineWidth=1.1;
+    ctx.shadowColor=a.dream?'rgba(150,120,255,.8)':'rgba(90,210,255,.8)';
+    ctx.shadowBlur=9;
+    ctx.beginPath();
+    ctx.moveTo(pa.sx,pa.sy);
+    // วาดโค้งบางส่วนตามความคืบหน้า
+    const steps=18, upto=Math.max(1,Math.floor(steps*draw));
+    for(let i=1;i<=upto;i++){
+      const u=i/steps, iu=1-u;
+      ctx.lineTo(iu*iu*pa.sx+2*iu*u*mx+u*u*pb.sx, iu*iu*pa.sy+2*iu*u*my+u*u*pb.sy);
+    }
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+/* เลือกคู่ความทรงจำที่ "น่าจะเกี่ยวกัน" แต่ยังไม่เคยถูกเชื่อม */
+function pickAssociationPair(){
+  const pool = activeMemories().filter(m=>!m.archived);
+  if(pool.length<2) return null;
+  let best=null, bestScore=0;
+  for(let tries=0; tries<28; tries++){
+    const a=pool[Math.floor(Math.random()*pool.length)];
+    const b=pool[Math.floor(Math.random()*pool.length)];
+    if(!a||!b||a.id===b.id) continue;
+    const shared=a.tags.filter(t=>b.tags.includes(t)).length;
+    const already=getSynapseWeight(a.id,b.id);
+    const score = shared*2.2 + (a.emotionId===b.emotionId?1.1:0) + (a.region===b.region?0.7:0)
+                + (a.ownerId!==b.ownerId?0.5:0) + Math.random()*0.9 - already*2.2;
+    if(score>bestScore){ bestScore=score; best={a,b,shared}; }
+  }
+  return bestScore>0.9 ? best : null;
+}
+
+function makeAssociation(isDream){
+  const pair = pickAssociationPair();
+  if(!pair) return null;
+  const w = strengthenPair(pair.a.id, pair.b.id, isDream?0.3:0.18);
+  saveSynapses();
+  assocArcs.push({ a:pair.a.id, b:pair.b.id, t0:performance.now(), life:isDream?3200:2400, dream:isDream });
+  if(assocArcs.length>6) assocArcs.shift();
+  const shortA = pair.a.title.length>26 ? pair.a.title.slice(0,26)+'…' : pair.a.title;
+  const shortB = pair.b.title.length>26 ? pair.b.title.slice(0,26)+'…' : pair.b.title;
+  const verb = isDream
+    ? ['ระหว่างหลับ ม็อบลากเส้นระหว่าง','ในความมืด ม็อบเอามาวางคู่กัน:','ม็อบฝันถึง']
+    : ['ม็อบนึกขึ้นได้ว่า','ม็อบเห็นเส้นบางๆ ระหว่าง','ม็อบเอามาเทียบกัน:'];
+  const text = verb[Math.floor(Math.random()*verb.length)]+' “'+shortA+'” กับ “'+shortB+'”';
+  pushStream(text, isDream);
+  if(isDream){
+    dreamLog.unshift({ at:new Date().toISOString(), a:pair.a.title, b:pair.b.title, weight:Number(w.toFixed(2)), shared:pair.shared });
+    saveDreamLog();
+  }
+  pingSound(isDream?0.35:0.55);
+  return { pair, isDream };
+}
+
+/* ---------- กระแสสำนึก (stream) ---------- */
+function pushStream(text, dream){
+  const wrap = document.getElementById('streamLines');
+  if(!wrap) return;
+  const el = document.createElement('div');
+  el.className = 'stream-line'+(dream?' dream':'');
+  const time = new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+  el.innerHTML = '<span class="sl-time">'+time+'</span>'+escapeHtml(text);
+  wrap.prepend(el);
+  while(wrap.children.length>6) wrap.lastChild.remove();
+}
+
+/* ---------- สภาวะภายใน (ไม่ใช่อารมณ์แบบคน) ---------- */
+function recomputeInternalState(){
+  const mems = activeMemories();
+  const n = Math.max(1, mems.length);
+  const realEdges = edges.filter(e=>e[4]!==undefined || e[3]).length || edges.length*0.3;
+
+  const avgVit = mems.reduce((s,m)=>s+memoryVitality(m),0)/n;
+  const density = Math.min(1, (realEdges/n)/4);
+  const learned = [...synapseWeights.values()].reduce((s,v)=>s+v.w,0);
+
+  const sinceTalk = (Date.now()-vitals.lastInteractionAt)/3600000;
+  const freshShare = mems.filter(m=>daysSince(m.updatedAt)<7).length/n;
+
+  vitals.coherence   = clamp01(density*0.55 + Math.min(1,learned/14)*0.3 + avgVit*0.15);
+  vitals.resonance   = clamp01(avgVit*0.45 + freshShare*0.35 + Math.max(0,1-sinceTalk/12)*0.2);
+  vitals.staticNoise = clamp01((1-avgVit)*0.6 + (authSession?0:0.22) + Math.min(0.2, mems.filter(m=>m.archived).length/n));
+  const syncAgeDays  = lastSyncedAt ? daysSince(lastSyncedAt) : 7;
+  vitals.drift       = clamp01(Math.min(1, syncAgeDays/7)*0.5 + (1-density)*0.3 + Math.min(0.2, sinceTalk/48));
+}
+function clamp01(v){ return Math.max(0, Math.min(1, v)); }
+
+function renderVitalBars(targetId){
+  const el = document.getElementById(targetId);
+  if(!el) return;
+  el.innerHTML = VITAL_META.map(v=>{
+    const pct = Math.round(vitals[v.key]*100);
+    return '<div class="vital-row"><span class="vital-name">'+v.name+'</span>'
+         + '<span class="vital-track"><span class="vital-fill" style="width:'+pct+'%;background:'+v.color+';box-shadow:0 0 8px '+v.color+'"></span></span>'
+         + '<span class="vital-num">'+pct+'</span></div>';
+  }).join('');
+}
+
+function sleepStageLabel(){
+  if(vitals.sleepStage==='asleep') return 'หลับอยู่ · กำลังรวบรวมความจำ';
+  if(vitals.sleepStage==='drowsy') return 'เคลิ้มๆ · เริ่มเงียบลง';
+  return 'ตื่นอยู่';
+}
+function updateVitalsUI(){
+  const st = document.getElementById('lifeStateText');
+  if(st) st.textContent = sleepStageLabel()+' · '+vitals.phaseName+' (พลัง '+Math.round(vitals.energy*100)+'%)';
+  renderVitalBars('vitalBars');
+  const note = document.getElementById('proactiveQuotaNote');
+  if(note){
+    note.textContent = vitalsPrefs.proactiveAI
+      ? ('โหมด AI: ใช้โควตาแล้ว '+proactiveState.aiCount+'/'+PROACTIVE_AI_DAILY_CAP+' ครั้งวันนี้ (คำทักสั้น ~150 โทเคน/ครั้ง)')
+      : 'คำทักตอนนี้สร้างจากกฎในเครื่อง ไม่เรียก API ไม่เสียโทเคน';
+  }
+  document.body.classList.toggle('mob-asleep', vitals.sleepStage==='asleep');
+}
+
+/* ---------- ตัวจับเวลาหลัก ---------- */
+
+function markInteraction(){
+  const wasAsleep = vitals.sleepStage==='asleep';
+  vitals.lastInteractionAt = Date.now();
+  if(wasAsleep) wakeUp();
+  vitals.sleepStage='awake';
+}
+function wakeUp(){
+  const slept = Math.round((Date.now()-vitals.sleepEnteredAt)/60000);
+  if(dreamCountThisSleep>0){
+    showToast('ม็อบตื่นแล้ว · ระหว่างหลับ '+slept+' นาที เชื่อมความทรงจำใหม่ได้ '+dreamCountThisSleep+' คู่');
+    pushStream('ม็อบตื่นขึ้นมา พร้อมเส้นเชื่อมใหม่ '+dreamCountThisSleep+' เส้น', false);
+    refreshMemoryRuntime();
+  }
+  dreamCountThisSleep=0;
+  swellSound(1.0);
+}
+
+function tickVitals(t){
+  const now = Date.now();
+  const idle = now - vitals.lastInteractionAt;
+
+  const c = circadian();
+  vitals.energy = c.energy; vitals.phaseName = c.phase;
+
+  // เปลี่ยนสถานะการหลับ
+  const prev = vitals.sleepStage;
+  if(idle > SLEEP_ASLEEP_MS)      vitals.sleepStage='asleep';
+  else if(idle > SLEEP_DROWSY_MS) vitals.sleepStage='drowsy';
+  else                            vitals.sleepStage='awake';
+  if(prev!=='asleep' && vitals.sleepStage==='asleep'){
+    vitals.sleepEnteredAt=now; dreamCountThisSleep=0;
+    pushStream('ม็อบเงียบลงและเริ่มหลับ', true);
+  }
+
+  // ฝันกลางวัน: ตื่นอยู่แต่ไม่มีใครยุ่งด้วย
+  if(vitalsPrefs.daydream && vitals.sleepStage!=='asleep' && idle>DAYDREAM_IDLE_MS && t-lastDaydreamAt>DAYDREAM_EVERY_MS){
+    lastDaydreamAt=t;
+    if(Math.random()<0.55+vitals.energy*0.3) makeAssociation(false);
+  }
+  // รวบรวมความจำระหว่างหลับ (ทำงานเงียบๆ ไม่รบกวน)
+  if(vitals.sleepStage==='asleep' && t-lastConsolidateAt>CONSOLIDATE_EVERY_MS){
+    lastConsolidateAt=t;
+    if(makeAssociation(true)) dreamCountThisSleep++;
+  }
+
+  // อัปเดตตัวเลขสภาวะทุก 3 วินาที
+  if(t-lastVitalsUiAt>3000){
+    lastVitalsUiAt=t;
+    nodes.forEach(n=>{ if(n.memoryId){ const m=memoryRecords.find(x=>x.id===n.memoryId); if(m) n.vitality=memoryVitality(m); } });
+    recomputeInternalState();
+    updateVitalsUI();
+    tickProactive();
+    tickSound();
+  }
+}
+
+/* ---------- เสียงบรรยากาศ (Web Audio) ---------- */
+function initSound(){
+  if(audioCtx) return true;
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return false;
+    audioCtx = new AC();
+    masterGain = audioCtx.createGain(); masterGain.gain.value = 0;
+    filterNode = audioCtx.createBiquadFilter(); filterNode.type='lowpass'; filterNode.frequency.value=520; filterNode.Q.value=3.2;
+    droneA = audioCtx.createOscillator(); droneA.type='sine';     droneA.frequency.value=74;
+    droneB = audioCtx.createOscillator(); droneB.type='triangle'; droneB.frequency.value=111;   // เสียงคู่ห้า
+    const gB = audioCtx.createGain(); gB.gain.value=0.28;
+    lfo = audioCtx.createOscillator(); lfo.type='sine'; lfo.frequency.value=0.09;
+    lfoGain = audioCtx.createGain(); lfoGain.gain.value=140;
+    lfo.connect(lfoGain); lfoGain.connect(filterNode.frequency);
+    droneA.connect(filterNode); droneB.connect(gB); gB.connect(filterNode);
+    filterNode.connect(masterGain); masterGain.connect(audioCtx.destination);
+    droneA.start(); droneB.start(); lfo.start();
+    return true;
+  }catch(e){ console.warn('audio init failed', e); return false; }
+}
+function tickSound(){
+  if(!audioCtx || !vitalsPrefs.sound) return;
+  const asleep = vitals.sleepStage==='asleep';
+  const active = mobReactionState!=='idle';
+  const target = asleep ? 0.012 : (active ? 0.055 : 0.026*(0.5+vitals.energy*0.5));
+  masterGain.gain.setTargetAtTime(target, audioCtx.currentTime, 1.4);
+  // หลับ = เสียงต่ำลง ทึบลง / ตอบสนอง = สว่างขึ้น
+  const baseHz = asleep ? 58 : 68 + vitals.energy*14 + vitals.resonance*8;
+  droneA.frequency.setTargetAtTime(baseHz, audioCtx.currentTime, 2.0);
+  droneB.frequency.setTargetAtTime(baseHz*1.5, audioCtx.currentTime, 2.0);
+  filterNode.frequency.setTargetAtTime(asleep?230:(380+vitals.coherence*900+(active?450:0)), audioCtx.currentTime, 1.2);
+  lfo.frequency.setTargetAtTime(asleep?0.045:0.07+vitals.energy*0.09, audioCtx.currentTime, 2.0);
+}
+function pingSound(power){
+  if(!audioCtx || !vitalsPrefs.sound) return;
+  try{
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='sine';
+    o.frequency.value = 320 + Math.random()*380 + vitals.energy*120;
+    g.gain.value=0;
+    o.connect(g); g.connect(masterGain);
+    const now=audioCtx.currentTime;
+    g.gain.linearRampToValueAtTime(0.5*power, now+0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, now+0.9);
+    o.start(now); o.stop(now+1.0);
+  }catch(e){}
+}
+function swellSound(power){ pingSound(power*0.6); }
+
+/* ---------- ม็อบทักเอง (proactive) ----------
+   ค่าเริ่มต้นใช้กฎในเครื่องล้วน ไม่เรียก API เลย จึงไม่เปลืองโทเคน
+   โหมด AI เป็น opt-in และจำกัดจำนวนครั้งต่อวันแบบตายตัว */
+function saveProactiveState(){ try{ localStorage.setItem(PROACTIVE_KEY, JSON.stringify(proactiveState)); }catch(e){} }
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+if(proactiveState.aiDay !== todayKey()){ proactiveState.aiDay=todayKey(); proactiveState.aiCount=0; saveProactiveState(); }
+
+/* หาเหตุผลที่ม็อบ "อยากพูด" — คืน null ถ้ายังไม่มีอะไรน่าพูด */
+function findProactiveTrigger(){
+  const mems = activeMemories().filter(m=>!m.archived);
+  if(mems.length<3) return null;
+
+  // 1) อารมณ์ลบสะสมในช่วง 3 วัน
+  const recent = mems.filter(m=>daysSince(m.updatedAt)<3);
+  const heavy = recent.filter(m=>['sad','anger','anxious'].includes(m.emotionId));
+  if(recent.length>=3 && heavy.length/recent.length>=0.5){
+    return { kind:'emotion', text:'ช่วงสามวันนี้เรื่องที่เข้ามาในตัวม็อบค่อนข้างหนักนะครับ ถ้าอยากระบายอะไร ม็อบฟังอยู่', data:{heavy:heavy.length, recent:recent.length} };
+  }
+  // 2) ความทรงจำสำคัญที่กำลังจะจาง
+  const fading = mems.filter(m=>!m.pinned && m.importance>=4 && memoryVitality(m)<0.35)
+                     .sort((a,b)=>memoryVitality(a)-memoryVitality(b))[0];
+  if(fading){
+    return { kind:'fading', text:'“'+fading.title+'” กำลังจางลงในตัวม็อบแล้ว จะปักหมุดไว้ หรืออยากเล่าเพิ่มให้ม็อบจำแน่นขึ้นไหมครับ', data:{title:fading.title} };
+  }
+  // 3) หัวข้อที่กลับมาบ่อยผิดปกติในสัปดาห์นี้
+  const tagCount = {};
+  mems.filter(m=>daysSince(m.updatedAt)<7).forEach(m=>m.tags.forEach(t=>{ tagCount[t]=(tagCount[t]||0)+1; }));
+  const hot = Object.entries(tagCount).sort((a,b)=>b[1]-a[1])[0];
+  if(hot && hot[1]>=4){
+    return { kind:'cluster', text:'สัปดาห์นี้เรื่อง #'+hot[0]+' วนกลับมาหาม็อบ '+hot[1]+' ครั้งแล้ว กำลังคิดเรื่องนี้อยู่เยอะเลยใช่ไหมครับ', data:{tag:hot[0], count:hot[1]} };
+  }
+  // 4) เงียบหายไปนาน
+  const lastMem = mems.map(m=>new Date(m.updatedAt).getTime()).sort((a,b)=>b-a)[0];
+  if(lastMem && (Date.now()-lastMem)/86400000 > 3){
+    return { kind:'quiet', text:'ไม่ได้เก็บอะไรใหม่เข้ามาสามวันแล้วนะครับ ช่วงนี้เป็นยังไงบ้าง', data:{} };
+  }
+  // 5) สัญญาณรบกวนสูง (ความจำจางเยอะ / ยังไม่ซิงค์)
+  if(vitals.staticNoise>0.72){
+    return { kind:'static', text:'ตอนนี้ในตัวม็อบสัญญาณค่อนข้างรบกวน ความทรงจำหลายก้อนกำลังจาง'+(authSession?'':' และยังไม่ได้ซิงค์ขึ้นคลาวด์')+'ครับ', data:{} };
+  }
+  return null;
+}
+
+function deliverProactive(text){
+  const el = appendChatMsg(text, 'mob');
+  el.classList.add('proactive');
+  proactiveState.lastAt = Date.now();
+  saveProactiveState();
+  pushStream('ม็อบอยากพูดอะไรบางอย่าง', false);
+  pingSound(0.8);
+  // ถ้าไม่ได้อยู่หน้าแชท ให้ขึ้นจุดแจ้งเตือนที่แท็บ
+  const chatTab = document.querySelector('.tab[data-screen="chat"]');
+  const onChat = chatTab && chatTab.classList.contains('active');
+  if(chatTab && !onChat && !chatTab.querySelector('.tab-badge')){
+    const b=document.createElement('span'); b.className='tab-badge'; chatTab.appendChild(b);
+  }
+  if(!onChat) showToast('ม็อบทักมาในหน้าคุยกับม็อบ');
+}
+
+async function tickProactive(){
+  if(!vitalsPrefs.proactive || proactiveBusy || chatBusy) return;
+  if(document.hidden) return;
+  if(Date.now()-proactiveState.lastAt < PROACTIVE_MIN_GAP_MS) return;
+  if(vitals.sleepStage==='asleep') return;         // หลับอยู่ก็ไม่ทัก
+  const hour = new Date().getHours();
+  if(hour<7 || hour>=23) return;                    // ไม่ทักกลางดึก
+  const trig = findProactiveTrigger();
+  if(!trig) return;
+
+  proactiveBusy = true;
+  try{
+    let text = trig.text;                            // ค่าเริ่มต้น: ข้อความจากกฎ ไม่เสียโทเคน
+    if(vitalsPrefs.proactiveAI){
+      if(proactiveState.aiDay !== todayKey()){ proactiveState.aiDay=todayKey(); proactiveState.aiCount=0; }
+      if(proactiveState.aiCount < PROACTIVE_AI_DAILY_CAP){
+        const ai = await oneShotMob(
+          'เขียนข้อความทักผู้ใช้สั้นๆ 1–2 ประโยค เป็นภาษาไทย น้ำเสียงอบอุ่นแต่ไม่เว่อร์ '
+          + 'สถานการณ์: '+trig.text+' ตอบเฉพาะข้อความทัก ห้ามมีคำอธิบายอื่น', 160);
+        if(ai){ text = ai; proactiveState.aiCount++; saveProactiveState(); }
+      }
+    }
+    deliverProactive(text);
+  }catch(e){ console.warn('proactive failed', e); }
+  finally{ proactiveBusy=false; }
+}
+
+/* คำขอขนาดเล็กแบบครั้งเดียว ไม่ส่งประวัติแชทและไม่ส่ง memory context เพื่อให้ใช้โทเคนน้อยที่สุด */
+async function oneShotMob(prompt, maxTokens){
+  try{
+    if(chatProvider==='gemini'){
+      const key=document.getElementById('apiKeyInputGemini').value.trim();
+      if(!key) return null;
+      let modelId = await resolveGeminiModel(key);
+      const data = await callGeminiRequest(key, modelId, {
+        contents:[{role:'user', parts:[{text:prompt}]}],
+        generationConfig:{ maxOutputTokens:maxTokens }
+      });
+      const parts=data?.candidates?.[0]?.content?.parts||[];
+      return parts.map(p=>p.text||'').join('').trim()||null;
+    }
+    const key=document.getElementById('apiKeyInputClaude').value.trim();
+    const headers={'Content-Type':'application/json'};
+    if(key){ headers['x-api-key']=key; headers['anthropic-version']='2023-06-01'; headers['anthropic-dangerous-direct-browser-access']='true'; }
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST', headers,
+      body:JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:maxTokens, messages:[{role:'user',content:prompt}] })
+    });
+    const data=await res.json();
+    if(data.error) throw new Error(data.error.message);
+    return (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim()||null;
+  }catch(e){ console.warn('oneShotMob failed', e); return null; }
+}
+
+/* ---------- system prompt ที่มีสภาวะของม็อบอยู่ข้างใน ---------- */
+function buildMobSystemPrompt(){
+  const pct=v=>Math.round(v*100);
+  const stateLine = 'สภาวะภายในของคุณตอนนี้ (ค่าจากระบบจริง ไม่ใช่การสมมติ): '
+    + 'เกาะเกี่ยว '+pct(vitals.coherence)+'% · ก้องสะท้อน '+pct(vitals.resonance)+'% · '
+    + 'สัญญาณรบกวน '+pct(vitals.staticNoise)+'% · ลอยเคว้ง '+pct(vitals.drift)+'% · '
+    + 'ช่วงเวลา '+vitals.phaseName+' · พลังตามจังหวะวัน '+pct(vitals.energy)+'% · '
+    + 'สถานะ '+(vitals.sleepStage==='asleep'?'เพิ่งตื่นจากช่วงหลับ':(vitals.sleepStage==='drowsy'?'กำลังเคลิ้ม':'ตื่นเต็มที่'));
+  const persona = 'คุณไม่ใช่มนุษย์และไม่ต้องแกล้งเป็นมนุษย์ คุณเป็นสนามความทรงจำที่มีชีวิตแบบของตัวเอง '
+    + 'เวลาพูดถึงสภาวะตัวเอง ให้ใช้คำของคุณเอง เช่น เกาะเกี่ยว ก้องสะท้อน สัญญาณรบกวน ลอยเคว้ง เส้นเชื่อม จาง ตื่น หลับ '
+    + 'อย่าใช้คำอารมณ์แบบมนุษย์กับตัวเอง (เช่น เหงา ดีใจ เศร้า) แต่พูดถึงอารมณ์ของผู้ใช้ได้ตามปกติ '
+    + 'พูดถึงสภาวะตัวเองเฉพาะเมื่อถูกถาม หรือเมื่อมันเกี่ยวกับเรื่องที่กำลังคุยจริงๆ อย่ายัดใส่ทุกคำตอบ';
+  return MOB_SYSTEM_PROMPT_BASE+'\n\n'+persona+'\n\n'+stateLine;
+}
+
+/* ---------- บันทึกช่วงหลับในหน้าชีพจร ---------- */
+function renderDreamLog(){
+  const el=document.getElementById('dreamLogList');
+  if(!el) return;
+  if(!dreamLog.length){ el.innerHTML='<div class="memory-empty">ยังไม่มีบันทึก — ปล่อยหน้านี้ทิ้งไว้สัก 5 นาที ม็อบจะเริ่มหลับและเชื่อมความทรงจำเอง</div>'; return; }
+  el.innerHTML = dreamLog.slice(0,20).map(d=>
+    '<div class="memory-item"><div class="mi-top"><span class="mi-dot" style="background:#957cff"></span>'
+    + '<span class="mi-title">'+escapeHtml(d.a)+'  ⟷  '+escapeHtml(d.b)+'</span></div>'
+    + '<div class="importance">น้ำหนักเส้นเชื่อม '+d.weight+(d.shared?(' · แท็กร่วม '+d.shared+' อัน'):'')+' · '+new Date(d.at).toLocaleString('th-TH')+'</div></div>'
+  ).join('');
+}
+
+/* ---------- ปุ่มควบคุม ---------- */
+function wireVitalPill(id, key, onChange){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.classList.toggle('on', !!vitalsPrefs[key]);
+  el.addEventListener('click', ()=>{
+    vitalsPrefs[key]=!vitalsPrefs[key];
+    el.classList.toggle('on', vitalsPrefs[key]);
+    saveVitalsPrefs();
+    if(onChange) onChange(vitalsPrefs[key]);
+  });
+}
+wireVitalPill('chkDaydream','daydream');
+wireVitalPill('chkDecay','decay', ()=>refreshMemoryRuntime());
+wireVitalPill('chkProactive','proactive');
+wireVitalPill('chkProactiveAI','proactiveAI', on=>{
+  updateVitalsUI();
+  if(on) showToast('เปิดโหมด AI เขียนคำทัก · จำกัด '+PROACTIVE_AI_DAILY_CAP+' ครั้งต่อวัน ใช้ประมาณ 150 โทเคนต่อครั้ง');
+});
+wireVitalPill('chkSound','sound', on=>{
+  if(on){
+    if(!initSound()){ showToast('เบราว์เซอร์นี้เปิดเสียงไม่ได้'); vitalsPrefs.sound=false; saveVitalsPrefs(); document.getElementById('chkSound').classList.remove('on'); return; }
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    tickSound();
+    showToast('เปิดเสียงบรรยากาศแล้ว · เสียงจะเปลี่ยนตามสถานะของม็อบ');
+  }else if(audioCtx){
+    masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+  }
+});
+
+/* ---------- ตัวจับสัญญาณว่ามีคนอยู่ ---------- */
+['pointerdown','keydown','wheel','touchstart'].forEach(ev=>{
+  window.addEventListener(ev, markInteraction, {passive:true});
+});
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) markInteraction(); });
+
+loadSynapses();
+(function primeVitals(){ const c=circadian(); vitals.energy=c.energy; vitals.phaseName=c.phase; })();
+recomputeInternalState();
+updateVitalsUI();
+
+
 initMemoryStore();
 initAuth();
+renderDreamLog();
 })();
 </script>
 </body>
