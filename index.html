@@ -422,12 +422,12 @@
 
   /* ---------- เพลง YouTube ---------- */
   .yt-widget{
-    position:fixed; left:16px; bottom:16px; width:272px; z-index:60;
+    position:fixed; top:292px; right:16px; width:260px; max-width:calc(100vw - 32px); z-index:60;
     background:rgba(4,10,17,.78); border:1px solid rgba(107,203,255,.16); border-radius:13px;
     padding:12px 13px; backdrop-filter:blur(11px); box-shadow:0 10px 30px rgba(0,0,0,.4);
     transition:transform .25s ease, opacity .2s ease;
   }
-  .yt-widget.collapsed{ transform:translateY(150%); opacity:0; pointer-events:none; }
+  .yt-widget.collapsed{ transform:translateX(130%); opacity:0; pointer-events:none; }
   .yt-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
   .yt-head-title{ font-size:10.5px; letter-spacing:.4px; color:var(--accent); }
   .yt-close{ cursor:pointer; color:var(--text-2); font-size:13px; line-height:1; padding:2px 4px; }
