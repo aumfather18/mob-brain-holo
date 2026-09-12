@@ -447,6 +447,9 @@
   .yt-btn{ width:29px; height:29px; border-radius:50%; background:rgba(255,255,255,.06); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12.5px; flex-shrink:0; user-select:none; }
   .yt-btn:hover{ background:rgba(255,255,255,.13); }
   .yt-vol{ flex:1; }
+  .yt-automix-row{ margin-top:9px; }
+  .yt-automix-row .pill{ width:100%; text-align:center; box-sizing:border-box; font-size:10.5px; padding:6px 8px; }
+  .yt-widget.mini .yt-automix-row{ display:none; }
   .yt-hint{ font-size:10px; color:var(--text-2); margin-top:8px; line-height:1.5; }
 
   .yt-search-results{ margin-bottom:9px; max-height:190px; overflow-y:auto; border-radius:8px; background:rgba(255,255,255,.03); display:none; }
@@ -540,6 +543,9 @@
         </div>
         <div class="row">
           <div class="pill" id="chkProactiveAI">ให้ AI เขียนคำทัก</div>
+        </div>
+        <div class="row">
+          <div class="pill" id="chkPerf" title="ลดจำนวนดาว/ฝุ่น/เส้นแสงเพื่อให้ลื่นขึ้นบนเครื่องที่แรงน้อย">โหมดประหยัด (ลื่นขึ้น)</div>
         </div>
         <div class="vitals-note" id="proactiveQuotaNote"></div>
       </div>
@@ -654,12 +660,15 @@
         <div class="yt-btn" id="ytNextBtn" title="ถัดไป">⏭</div>
         <input type="range" class="yt-vol" id="ytVol" min="0" max="100" value="70">
       </div>
+      <div class="yt-automix-row">
+        <div class="pill on" id="ytAutoMixToggle" title="เมื่อเปิดเพลงเดี่ยว จะต่อเป็นเพลย์ลิสต์ Mix ของ YouTube ให้อัตโนมัติ ปุ่มก่อนหน้า/ถัดไปจะใช้ได้">เล่นต่อเนื่องอัตโนมัติ (Mix)</div>
+      </div>
       <div class="yt-key-toggle" id="ytKeyToggle">ตั้งค่า YouTube API key เพื่อค้นในนี้ได้เลย (ไม่บังคับ) ▾</div>
       <div class="yt-key-settings" id="ytKeySettings" style="display:none">
         <input class="search" type="password" id="ytApiKeyInput" placeholder="YouTube Data API key (ไม่บังคับ)">
         <div class="yt-key-note">ไม่ใส่ก็พิมพ์ชื่อเพลงได้ตามปกติ — ระบบจะเปิดผลค้นหาใน YouTube แท็บใหม่ให้แทน แล้วคัดลอกลิงก์กลับมาวาง ถ้าใส่คีย์ (ฟรีจาก Google Cloud Console โควตา 10,000 หน่วย/วัน) จะค้นแล้วเลือกเล่นได้จากในนี้เลย คีย์อยู่ในหน่วยความจำแท็บนี้เท่านั้น ไม่ถูกบันทึกลงไฟล์</div>
       </div>
-      <div class="yt-hint">ตอนเพลงเล่นอยู่ เสียงบรรยากาศสังเคราะห์ของม็อบจะหรี่ลงเองอัตโนมัติ</div>
+      <div class="yt-hint">เพลงเดี่ยวจะต่อเป็นเพลย์ลิสต์ Mix ของ YouTube ให้อัตโนมัติ ปิดได้ที่ปุ่มด้านบน · ตอนเพลงเล่นอยู่ เสียงบรรยากาศสังเคราะห์ของม็อบจะหรี่ลงเองอัตโนมัติ</div>
     </div>
 
     <div class="memory-modal-backdrop" id="authModal">
@@ -1077,6 +1086,7 @@ generateData();
 
 /* galaxy background + anatomical brain scaffold — wireframe traced from the real uploaded mesh's own surface (k-NN edges over the downsampled points), not a synthetic parametric shape */
 const shellRings = BRAIN_MESH_EDGES.map(([a,b])=>[BRAIN_MESH_POINTS[a], BRAIN_MESH_POINTS[b]]);
+const shellRingsLite = shellRings.filter((_,i)=>i%2===0);   // ~half the edges, used in performance mode
 const sulciPaths = []; // no separate synthetic sulci layer needed — real folds are already present in shellRings
 
 function buildDust(count){
@@ -1392,6 +1402,9 @@ function nodeVisible(n){
 /* ---------- render loop ---------- */
 
 let lastT = performance.now();
+let lastFrameAt = 0;
+const FRAME_INTERVAL_MS = 1000/60;   // caps the scene to ~60fps regardless of the monitor's real refresh rate
+let perfMode = safeLsGet('mob_perf_mode_v1')==='1';
 
 function drawGalaxyBackground(t, gf=1){
   ctx.clearRect(0,0,W,H);
@@ -1417,15 +1430,17 @@ function drawGalaxyBackground(t, gf=1){
 
   const t2=t*.00004;
   const starSpan = Math.floor(galaxyStars.length*(0.4+0.6*gf));   // ยังเด็กอยู่ = ท้องฟ้ายังไม่เต็ม
-  galaxyStars.forEach((s,i)=>{
-    if(i>starSpan) return;
+  const starStep = perfMode ? 2 : 1;
+  for(let i=0;i<galaxyStars.length;i+=starStep){
+    if(i>starSpan) break;
+    const s=galaxyStars[i];
     const x=((s.x + t2*(0.015 + (i%5)*0.002))%1)*W;
     const y=((s.y + t2*(0.01 + (i%3)*0.0015))%1)*H;
     const tw=0.58+0.42*Math.sin(t*.0012*s.speed+s.phase);
     ctx.globalAlpha=s.a*tw*0.4*(0.55+0.45*gf);
     ctx.fillStyle=i%9===0?'#bfefff':'#e8f8ff';
     ctx.beginPath();ctx.arc(x,y,s.r,0,Math.PI*2);ctx.fill();
-  });
+  }
   ctx.globalAlpha=1;
 
   // Subtle nebula filaments behind the brain.
@@ -1486,6 +1501,8 @@ function strokeEdgeBatch(edgePaths, projectFn, ctxRef, alpha, width, glow){
 }
 
 function render(t){
+  if(t-lastFrameAt < FRAME_INTERVAL_MS){ requestAnimationFrame(render); return; }
+  lastFrameAt = t;
   const dt=(t-lastT)/1000; lastT=t;
   tickVitals(t);
   easeMood(dt);
@@ -1502,36 +1519,39 @@ function render(t){
 
   // Anatomical shell — real wireframe traced from the uploaded brain mesh's own surface.
   if(state.showCortex){
-    strokeEdgeBatch(shellRings, proj, ctx, 0.13, 0.55, 2);
+    strokeEdgeBatch(perfMode ? shellRingsLite : shellRings, proj, ctx, 0.13, 0.55, 2);
   }
 
   // Stardust filling the whole brain volume.
   if(state.showDust){
-    dust.forEach((p,i)=>{
+    const dustStep = perfMode ? 3 : 1;
+    for(let i=0;i<dust.length;i+=dustStep){
+      const p=dust[i];
       const pr=proj(p);
       const tw=.35+.65*Math.sin(t*.001*p.speed+p.phase);
       ctx.globalAlpha=.055+.11*tw;
       ctx.fillStyle=i%13===0?'#d9f8ff':'#78cfff';
       ctx.beginPath();ctx.arc(pr.sx,pr.sy,0.5+(i%3)*.15,0,Math.PI*2);ctx.fill();
-    });
+    }
     ctx.globalAlpha=1;
   }
 
   // Hub rays: thin light-strands fanning out from key memories, like the reference photo.
-  if(state.showSynapse && hubRays.length){
+  // Batched into a single path with a flat alpha instead of one gradient+stroke per ray —
+  // per-ray createLinearGradient() was one of the biggest frame-time costs in this scene.
+  if(state.showSynapse && hubRays.length && !perfMode){
     const rayGf = 0.35+0.65*gf;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(190,225,255,'+(0.085*rayGf).toFixed(4)+')';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
     hubRays.forEach(r=>{
       const pa=proj({x:r.hx,y:r.hy,z:r.hz});
       const pb=proj({x:r.dx,y:r.dy,z:r.dz});
-      const g=ctx.createLinearGradient(pa.sx,pa.sy,pb.sx,pb.sy);
-      g.addColorStop(0,'rgba(190,225,255,'+(.14*rayGf)+')');
-      g.addColorStop(1,'rgba(190,225,255,0)');
-      ctx.strokeStyle=g;
-      ctx.lineWidth=0.6;
-      ctx.beginPath();
       ctx.moveTo(pa.sx,pa.sy); ctx.lineTo(pb.sx,pb.sy);
-      ctx.stroke();
     });
+    ctx.stroke();
+    ctx.restore();
   }
 
   // (no synthetic medial fissure needed — the real uploaded mesh's own groove already shows through the wireframe and dust)
@@ -1584,11 +1604,16 @@ function render(t){
     const alpha=(dimmed?.08:(state.mode2D?.86:Math.max(.22,Math.min(1,p.scale))))*(0.2+0.8*vit)*sleepDim;
     ctx.save();
     ctx.globalAlpha=alpha;
-    ctx.shadowColor=nodeColor(n);
-    ctx.shadowBlur=isSel?16:(n.isCore?11:(n.pinned?8:(n.isToc?5:2)));
+    // shadowBlur is one of canvas's most expensive per-call operations — most nodes are
+    // plain filler/anchor points, so only pay for the glow on the handful that should stand out.
+    const glowing = isSel || n.isCore || n.pinned || n.isToc;
+    if(glowing){
+      ctx.shadowColor=nodeColor(n);
+      ctx.shadowBlur=isSel?16:(n.isCore?11:(n.pinned?8:5));
+    }
     ctx.fillStyle=nodeColor(n);
     ctx.beginPath();ctx.arc(p.sx,p.sy,r,0,Math.PI*2);ctx.fill();
-    ctx.shadowBlur=0;
+    if(glowing) ctx.shadowBlur=0;
     ctx.fillStyle='rgba(235,251,255,.95)';
     ctx.beginPath();ctx.arc(p.sx,p.sy,Math.max(.55,r*.34),0,Math.PI*2);ctx.fill();
 
@@ -3029,7 +3054,26 @@ function swellSound(power){ pingSound(power*0.6); }
    เก็บเฉพาะ id/ประเภทของวิดีโอ/เพลย์ลิสต์ไว้ใน localStorage ไม่ใช่ตัวเนื้อหา */
 const YT_LAST_KEY = 'mob_yt_last_v1';
 const YT_VOL_KEY  = 'mob_yt_volume_v1';
+const YT_AUTOMIX_KEY = 'mob_yt_automix_v1';
 let ytPlayer=null, ytApiRequested=false, ytPendingCbs=[], ytDucking=false;
+let ytAutoMix = safeLsGet(YT_AUTOMIX_KEY) !== '0';   // default on: a single song becomes a continuous YouTube Mix
+let ytLastAttemptedRef = null, ytMixFallbackTried = false;
+
+/* วิดีโอเดี่ยวไม่มีปุ่มถัดไป/ก่อนหน้าให้กดจริงๆ (มันไม่ใช่เพลย์ลิสต์)
+   YouTube สร้าง "Mix" อัตโนมัติให้ทุกวิดีโอที่ list id คือ "RD"+videoId — ใช้ตัวนี้แทน
+   เพื่อให้เพลงเดี่ยวที่วางมากลายเป็นเพลย์ลิสต์ต่อเนื่องได้จริง ปุ่มถัดไป/ก่อนหน้าใช้ได้ตามปกติ */
+function resolvePlayerOpts(ref){
+  if(ref.type==='playlist') return { listType:'playlist', list:ref.id };
+  if(ref.listId)            return { videoId:ref.id, listType:'playlist', list:ref.listId };
+  if(ytAutoMix)             return { listType:'playlist', list:'RD'+ref.id };
+  return { videoId:ref.id };
+}
+function applyRefToPlayer(ref){
+  if(ref.type==='playlist'){ ytPlayer.loadPlaylist({ list:ref.id }); return; }
+  if(ref.listId){ ytPlayer.loadPlaylist({ list:ref.listId }); return; }
+  if(ytAutoMix){ ytPlayer.loadPlaylist({ list:'RD'+ref.id }); return; }
+  ytPlayer.loadVideoById(ref.id);
+}
 
 function extractYouTubeRef(raw){
   const s = String(raw||'').trim();
@@ -3062,27 +3106,35 @@ function ensureYouTubeAPI(cb){
 function loadYouTubeRef(ref){
   if(!ref) return;
   try{ localStorage.setItem(YT_LAST_KEY, JSON.stringify(ref)); }catch(e){}
+  ytLastAttemptedRef = ref;
+  ytMixFallbackTried = false;
   ensureYouTubeAPI(()=>{
     const savedVol = Number(safeLsGet(YT_VOL_KEY) || 70);
     if(!ytPlayer){
-      const opts = ref.type==='playlist'
-        ? { listType:'playlist', list:ref.id }
-        : Object.assign({ videoId:ref.id }, ref.listId ? { listType:'playlist', list:ref.listId } : {});
+      const opts = resolvePlayerOpts(ref);
       ytPlayer = new YT.Player('ytFrame', {
         height:'100%', width:'100%',
         playerVars: Object.assign({ autoplay:1, rel:0, modestbranding:1 }, opts),
         events: {
           onReady: ()=>{ ytPlayer.setVolume(savedVol); const vol=document.getElementById('ytVol'); if(vol) vol.value=savedVol; updateYtNowPlaying(); },
           onStateChange: onYtStateChange,
-          onError: ()=>showToast('เล่นวิดีโอนี้ไม่ได้ (อาจถูกจำกัดการฝัง)')
+          onError: onYtError
         }
       });
-    }else if(ref.type==='playlist'){
-      ytPlayer.loadPlaylist({ list:ref.id });
     }else{
-      ytPlayer.loadVideoById(ref.id);
+      applyRefToPlayer(ref);
     }
   });
+}
+function onYtError(){
+  // ถ้าเป็นวิดีโอที่ YouTube ไม่มี Mix ให้ (เช่นถูกจำกัดสิทธิ์บางอย่าง) ให้ถอยไปเล่นวิดีโอเดี่ยวแทนแทนที่จะเงียบไปเฉยๆ
+  if(ytAutoMix && !ytMixFallbackTried && ytLastAttemptedRef && ytLastAttemptedRef.type==='video' && !ytLastAttemptedRef.listId){
+    ytMixFallbackTried = true;
+    showToast('เพลย์ลิสต์ต่อเนื่องอัตโนมัติใช้กับวิดีโอนี้ไม่ได้ เปิดเฉพาะเพลงนี้แทน');
+    if(ytPlayer) ytPlayer.loadVideoById(ytLastAttemptedRef.id);
+  }else{
+    showToast('เล่นวิดีโอนี้ไม่ได้ (อาจถูกจำกัดการฝัง)');
+  }
 }
 function onYtStateChange(e){
   const YTn = window.YT;
@@ -3194,12 +3246,23 @@ document.getElementById('ytPlayBtn').addEventListener('click', ()=>{
   const st = ytPlayer.getPlayerState();
   if(st===1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
 });
-document.getElementById('ytPrevBtn').addEventListener('click', ()=>{ if(ytPlayer && ytPlayer.previousVideo) ytPlayer.previousVideo(); });
-document.getElementById('ytNextBtn').addEventListener('click', ()=>{ if(ytPlayer && ytPlayer.nextVideo) ytPlayer.nextVideo(); });
+document.getElementById('ytPrevBtn').addEventListener('click', ()=>{ try{ if(ytPlayer && ytPlayer.previousVideo) ytPlayer.previousVideo(); }catch(e){} });
+document.getElementById('ytNextBtn').addEventListener('click', ()=>{ try{ if(ytPlayer && ytPlayer.nextVideo) ytPlayer.nextVideo(); }catch(e){} });
 document.getElementById('ytVol').addEventListener('input', e=>{
   const v = Number(e.target.value);
   if(ytPlayer) ytPlayer.setVolume(v);
   try{ localStorage.setItem(YT_VOL_KEY, String(v)); }catch(err){}
+});
+(function primeAutoMixToggle(){
+  document.getElementById('ytAutoMixToggle').classList.toggle('on', ytAutoMix);
+})();
+document.getElementById('ytAutoMixToggle').addEventListener('click', function(){
+  ytAutoMix = !ytAutoMix;
+  this.classList.toggle('on', ytAutoMix);
+  try{ localStorage.setItem(YT_AUTOMIX_KEY, ytAutoMix?'1':'0'); }catch(e){}
+  showToast(ytAutoMix ? 'เพลงเดี่ยวจะต่อเป็นเพลย์ลิสต์ Mix อัตโนมัติ' : 'ปิดแล้ว — เพลงเดี่ยวจะเล่นแค่เพลงเดียวแล้วหยุด');
+  // เพลงที่กำลังเล่นอยู่แล้วก็สลับโหมดตามได้ทันที ไม่ต้องโหลดใหม่เอง
+  if(ytPlayer && ytLastAttemptedRef) applyRefToPlayer(ytLastAttemptedRef);
 });
 (function primeYtWidget(){
   const last = safeLsGet(YT_LAST_KEY);
@@ -3379,6 +3442,14 @@ wireVitalPill('chkSound','sound', on=>{
   }else if(audioCtx){
     masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
   }
+});
+
+document.getElementById('chkPerf').classList.toggle('on', perfMode);
+document.getElementById('chkPerf').addEventListener('click', function(){
+  perfMode = !perfMode;
+  this.classList.toggle('on', perfMode);
+  try{ localStorage.setItem('mob_perf_mode_v1', perfMode?'1':'0'); }catch(e){}
+  showToast(perfMode ? 'เปิดโหมดประหยัดแล้ว ลดความหนาแน่นของดาว/ฝุ่น/เส้นแสง' : 'ปิดโหมดประหยัดแล้ว กลับไปแสดงผลเต็มความละเอียด');
 });
 
 /* ---------- ตัวจับสัญญาณว่ามีคนอยู่ ---------- */
