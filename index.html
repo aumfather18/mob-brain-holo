@@ -423,18 +423,24 @@
   /* ---------- เพลง YouTube ---------- */
   .yt-widget{
     position:fixed; top:292px; right:16px; width:260px; max-width:calc(100vw - 32px); z-index:60;
+    max-height:calc(100vh - 442px); min-height:64px; overflow-y:auto; overflow-x:hidden;
     background:rgba(4,10,17,.78); border:1px solid rgba(107,203,255,.16); border-radius:13px;
     padding:12px 13px; backdrop-filter:blur(11px); box-shadow:0 10px 30px rgba(0,0,0,.4);
     transition:transform .25s ease, opacity .2s ease;
   }
+  .yt-widget::-webkit-scrollbar{ width:5px; }
+  .yt-widget::-webkit-scrollbar-thumb{ background:rgba(107,203,255,.25); border-radius:3px; }
   .yt-widget.collapsed{ transform:translateX(130%); opacity:0; pointer-events:none; }
-  .yt-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
-  .yt-head-title{ font-size:10.5px; letter-spacing:.4px; color:var(--accent); }
-  .yt-close{ cursor:pointer; color:var(--text-2); font-size:13px; line-height:1; padding:2px 4px; }
-  .yt-close:hover{ color:var(--text-0); }
+  .yt-widget.mini .yt-frame-wrap, .yt-widget.mini .yt-hint{ display:none; }
+  .yt-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; gap:6px; }
+  .yt-head-title{ font-size:10.5px; letter-spacing:.4px; color:var(--accent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .yt-head-actions{ display:flex; align-items:center; gap:2px; flex-shrink:0; }
+  .yt-min, .yt-close{ cursor:pointer; color:var(--text-2); font-size:13px; line-height:1; padding:2px 5px; }
+  .yt-min:hover, .yt-close:hover{ color:var(--text-0); }
   .yt-frame-wrap{ width:100%; aspect-ratio:16/9; border-radius:9px; overflow:hidden; background:#000; margin-bottom:9px; }
   .yt-frame-wrap iframe{ width:100%; height:100%; border:0; display:block; }
   .yt-now{ font-size:11px; color:var(--text-1); margin-bottom:9px; line-height:1.4; max-height:2.5em; overflow:hidden; }
+  .yt-widget.mini .yt-now{ max-height:none; margin-bottom:8px; }
   .yt-input-row{ display:flex; gap:6px; margin-bottom:9px; }
   .yt-input-row input{ flex:1; min-width:0; }
   .yt-controls{ display:flex; align-items:center; gap:9px; }
@@ -442,6 +448,23 @@
   .yt-btn:hover{ background:rgba(255,255,255,.13); }
   .yt-vol{ flex:1; }
   .yt-hint{ font-size:10px; color:var(--text-2); margin-top:8px; line-height:1.5; }
+
+  .yt-search-results{ margin-bottom:9px; max-height:190px; overflow-y:auto; border-radius:8px; background:rgba(255,255,255,.03); display:none; }
+  .yt-search-item{ display:flex; gap:8px; padding:6px 7px; cursor:pointer; align-items:center; }
+  .yt-search-item:hover{ background:rgba(255,255,255,.07); }
+  .yt-search-item img{ width:46px; height:34px; border-radius:4px; object-fit:cover; flex-shrink:0; background:#111; }
+  .ysi-text{ min-width:0; }
+  .ysi-title{ font-size:10.5px; color:var(--text-0); line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .ysi-channel{ font-size:9.5px; color:var(--text-2); margin-top:2px; }
+  .yt-search-empty{ padding:9px; font-size:11px; color:var(--text-2); text-align:center; }
+  .yt-widget.mini .yt-search-results{ display:none !important; }
+
+  .yt-key-toggle{ font-size:10px; color:var(--accent); cursor:pointer; margin-bottom:8px; opacity:.85; }
+  .yt-key-toggle:hover{ opacity:1; }
+  .yt-widget.mini .yt-key-toggle, .yt-widget.mini .yt-key-settings{ display:none; }
+  .yt-key-settings{ margin-bottom:9px; }
+  .yt-key-settings input{ margin-bottom:6px; }
+  .yt-key-note{ font-size:9.5px; color:var(--text-2); line-height:1.5; }
 </style>
 </head>
 <body>
@@ -613,12 +636,16 @@
     <div class="yt-widget collapsed" id="ytWidget">
       <div class="yt-head">
         <span class="yt-head-title">♪ เพลงจาก YouTube</span>
-        <span class="yt-close" id="ytClose">✕</span>
+        <span class="yt-head-actions">
+          <span class="yt-min" id="ytMinBtn" title="ย่อ/ขยาย">⤢</span>
+          <span class="yt-close" id="ytClose">✕</span>
+        </span>
       </div>
       <div class="yt-frame-wrap"><div id="ytFrame"></div></div>
-      <div class="yt-now" id="ytNow">ยังไม่ได้เปิดเพลง — วางลิงก์ด้านล่าง</div>
+      <div class="yt-now" id="ytNow">ยังไม่ได้เปิดเพลง — พิมพ์ชื่อเพลงหรือวางลิงก์ด้านล่าง</div>
+      <div class="yt-search-results" id="ytSearchResults"></div>
       <div class="yt-input-row">
-        <input class="search" id="ytInput" placeholder="วางลิงก์วิดีโอ/เพลย์ลิสต์ YouTube...">
+        <input class="search" id="ytInput" placeholder="พิมพ์ชื่อเพลง หรือวางลิงก์ YouTube...">
         <div class="pill" id="ytLoadBtn">โหลด</div>
       </div>
       <div class="yt-controls">
@@ -626,6 +653,11 @@
         <div class="yt-btn" id="ytPlayBtn" title="เล่น/หยุด">▶</div>
         <div class="yt-btn" id="ytNextBtn" title="ถัดไป">⏭</div>
         <input type="range" class="yt-vol" id="ytVol" min="0" max="100" value="70">
+      </div>
+      <div class="yt-key-toggle" id="ytKeyToggle">ตั้งค่า YouTube API key เพื่อค้นในนี้ได้เลย (ไม่บังคับ) ▾</div>
+      <div class="yt-key-settings" id="ytKeySettings" style="display:none">
+        <input class="search" type="password" id="ytApiKeyInput" placeholder="YouTube Data API key (ไม่บังคับ)">
+        <div class="yt-key-note">ไม่ใส่ก็พิมพ์ชื่อเพลงได้ตามปกติ — ระบบจะเปิดผลค้นหาใน YouTube แท็บใหม่ให้แทน แล้วคัดลอกลิงก์กลับมาวาง ถ้าใส่คีย์ (ฟรีจาก Google Cloud Console โควตา 10,000 หน่วย/วัน) จะค้นแล้วเลือกเล่นได้จากในนี้เลย คีย์อยู่ในหน่วยความจำแท็บนี้เท่านั้น ไม่ถูกบันทึกลงไฟล์</div>
       </div>
       <div class="yt-hint">ตอนเพลงเล่นอยู่ เสียงบรรยากาศสังเคราะห์ของม็อบจะหรี่ลงเองอัตโนมัติ</div>
     </div>
@@ -3071,17 +3103,83 @@ function updateYtNowPlaying(){
   }catch(e){}
 }
 
+let ytApiKey='';
+document.getElementById('ytKeyToggle').addEventListener('click', function(){
+  const panel=document.getElementById('ytKeySettings');
+  const showing = panel.style.display!=='none';
+  panel.style.display = showing?'none':'block';
+  this.textContent = 'ตั้งค่า YouTube API key เพื่อค้นในนี้ได้เลย (ไม่บังคับ) '+(showing?'▾':'▴');
+});
+document.getElementById('ytApiKeyInput').addEventListener('input', e=>{ ytApiKey = e.target.value.trim(); });
+
+function clearYtSearchResults(){
+  const el=document.getElementById('ytSearchResults');
+  el.style.display='none'; el.innerHTML='';
+}
+function renderYtSearchResults(items){
+  const el=document.getElementById('ytSearchResults');
+  if(!items.length){ el.innerHTML='<div class="yt-search-empty">ไม่พบผลลัพธ์</div>'; el.style.display='block'; return; }
+  el.innerHTML = items.map(it=>{
+    const vid = it.id && it.id.videoId; const sn=it.snippet||{};
+    const thumb = (sn.thumbnails && (sn.thumbnails.default||sn.thumbnails.medium) || {}).url || '';
+    return '<div class="yt-search-item" data-vid="'+escapeHtml(vid||'')+'">'
+      + '<img src="'+escapeHtml(thumb)+'" alt="">'
+      + '<div class="ysi-text"><div class="ysi-title">'+escapeHtml(sn.title||'')+'</div><div class="ysi-channel">'+escapeHtml(sn.channelTitle||'')+'</div></div>'
+      + '</div>';
+  }).join('');
+  el.style.display='block';
+  el.querySelectorAll('.yt-search-item').forEach(item=>{
+    item.addEventListener('click', ()=>{
+      const vid=item.dataset.vid;
+      if(vid) loadYouTubeRef({ type:'video', id:vid, raw:vid });
+      clearYtSearchResults();
+    });
+  });
+}
+async function searchYouTube(query){
+  if(!ytApiKey){
+    window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(query), '_blank', 'noopener');
+    showToast('เปิดผลค้นหาใน YouTube แท็บใหม่ให้แล้ว — คัดลอกลิงก์วิดีโอที่ต้องการมาวางที่นี่ (หรือใส่ YouTube API key เพื่อค้นในนี้ได้เลย)');
+    return;
+  }
+  const el=document.getElementById('ytSearchResults');
+  el.style.display='block'; el.innerHTML='<div class="yt-search-empty">กำลังค้นหา...</div>';
+  try{
+    const url = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=6&q='+encodeURIComponent(query)+'&key='+encodeURIComponent(ytApiKey);
+    const res = await fetch(url);
+    const data = await res.json();
+    if(data.error){ showToast('ค้นหาไม่สำเร็จ: '+(data.error.message||'ไม่ทราบสาเหตุ')); clearYtSearchResults(); return; }
+    renderYtSearchResults(data.items||[]);
+  }catch(e){ showToast('ค้นหาไม่สำเร็จ (เช็คอินเทอร์เน็ตหรือคีย์)'); clearYtSearchResults(); }
+}
+
 const ytWidgetEl = document.getElementById('ytWidget');
 document.getElementById('ytToggleBtn').addEventListener('click', ()=>{
   ytWidgetEl.classList.toggle('collapsed');
 });
 document.getElementById('ytClose').addEventListener('click', ()=> ytWidgetEl.classList.add('collapsed'));
+document.getElementById('ytMinBtn').addEventListener('click', ()=>{
+  const mini = ytWidgetEl.classList.toggle('mini');
+  document.getElementById('ytMinBtn').textContent = mini ? '⤡' : '⤢';
+  try{ localStorage.setItem('mob_yt_mini_v1', mini?'1':'0'); }catch(e){}
+});
+if(safeLsGet('mob_yt_mini_v1')==='1'){ ytWidgetEl.classList.add('mini'); document.getElementById('ytMinBtn').textContent='⤡'; }
 document.getElementById('ytLoadBtn').addEventListener('click', ()=>{
   const input = document.getElementById('ytInput');
-  const ref = extractYouTubeRef(input.value);
-  if(!ref){ showToast('วางลิงก์วิดีโอหรือเพลย์ลิสต์ YouTube ให้ถูกต้องก่อนครับ'); return; }
-  loadYouTubeRef(ref);
-  input.value='';
+  const raw = input.value.trim();
+  if(!raw){ showToast('พิมพ์ชื่อเพลงหรือวางลิงก์ก่อนครับ'); return; }
+  const ref = extractYouTubeRef(raw);
+  if(ref){
+    loadYouTubeRef(ref);
+    input.value='';
+    clearYtSearchResults();
+  }else{
+    searchYouTube(raw);
+  }
+});
+document.getElementById('ytInput').addEventListener('input', e=>{
+  const btn=document.getElementById('ytLoadBtn');
+  btn.textContent = extractYouTubeRef(e.target.value) ? 'โหลด' : 'ค้นหา';
 });
 document.getElementById('ytInput').addEventListener('keydown', e=>{
   if(e.key==='Enter') document.getElementById('ytLoadBtn').click();
