@@ -419,6 +419,29 @@
   }
   .msg.proactive{ border-left:2px solid rgba(149,124,255,.8); }
   .vitals-note{ font-size:10.5px; color:var(--text-2); line-height:1.5; margin-top:4px; }
+
+  /* ---------- เพลง YouTube ---------- */
+  .yt-widget{
+    position:fixed; left:16px; bottom:16px; width:272px; z-index:60;
+    background:rgba(4,10,17,.78); border:1px solid rgba(107,203,255,.16); border-radius:13px;
+    padding:12px 13px; backdrop-filter:blur(11px); box-shadow:0 10px 30px rgba(0,0,0,.4);
+    transition:transform .25s ease, opacity .2s ease;
+  }
+  .yt-widget.collapsed{ transform:translateY(150%); opacity:0; pointer-events:none; }
+  .yt-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
+  .yt-head-title{ font-size:10.5px; letter-spacing:.4px; color:var(--accent); }
+  .yt-close{ cursor:pointer; color:var(--text-2); font-size:13px; line-height:1; padding:2px 4px; }
+  .yt-close:hover{ color:var(--text-0); }
+  .yt-frame-wrap{ width:100%; aspect-ratio:16/9; border-radius:9px; overflow:hidden; background:#000; margin-bottom:9px; }
+  .yt-frame-wrap iframe{ width:100%; height:100%; border:0; display:block; }
+  .yt-now{ font-size:11px; color:var(--text-1); margin-bottom:9px; line-height:1.4; max-height:2.5em; overflow:hidden; }
+  .yt-input-row{ display:flex; gap:6px; margin-bottom:9px; }
+  .yt-input-row input{ flex:1; min-width:0; }
+  .yt-controls{ display:flex; align-items:center; gap:9px; }
+  .yt-btn{ width:29px; height:29px; border-radius:50%; background:rgba(255,255,255,.06); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12.5px; flex-shrink:0; user-select:none; }
+  .yt-btn:hover{ background:rgba(255,255,255,.13); }
+  .yt-vol{ flex:1; }
+  .yt-hint{ font-size:10px; color:var(--text-2); margin-top:8px; line-height:1.5; }
 </style>
 </head>
 <body>
@@ -434,6 +457,7 @@
     <div class="tab" data-tab="คุยกับม็อบ" data-screen="chat">คุยกับม็อบ</div>
     <div class="tab" data-tab="เครื่องมือ" data-screen="tools">เครื่องมือ</div>
     <div class="pill" id="syncStatusBtn" style="margin-left:auto">เข้าสู่ระบบเพื่อซิงค์</div>
+    <div class="pill" id="ytToggleBtn" title="เปิด/ปิดเครื่องเล่นเพลง YouTube">🎵 เพลง</div>
   </nav>
 
   <div class="main">
@@ -584,6 +608,26 @@
           <div class="pill on" id="btnMemorySave">บันทึกความทรงจำ</div>
         </div>
       </div>
+    </div>
+
+    <div class="yt-widget collapsed" id="ytWidget">
+      <div class="yt-head">
+        <span class="yt-head-title">♪ เพลงจาก YouTube</span>
+        <span class="yt-close" id="ytClose">✕</span>
+      </div>
+      <div class="yt-frame-wrap"><div id="ytFrame"></div></div>
+      <div class="yt-now" id="ytNow">ยังไม่ได้เปิดเพลง — วางลิงก์ด้านล่าง</div>
+      <div class="yt-input-row">
+        <input class="search" id="ytInput" placeholder="วางลิงก์วิดีโอ/เพลย์ลิสต์ YouTube...">
+        <div class="pill" id="ytLoadBtn">โหลด</div>
+      </div>
+      <div class="yt-controls">
+        <div class="yt-btn" id="ytPrevBtn" title="ก่อนหน้า">⏮</div>
+        <div class="yt-btn" id="ytPlayBtn" title="เล่น/หยุด">▶</div>
+        <div class="yt-btn" id="ytNextBtn" title="ถัดไป">⏭</div>
+        <input type="range" class="yt-vol" id="ytVol" min="0" max="100" value="70">
+      </div>
+      <div class="yt-hint">ตอนเพลงเล่นอยู่ เสียงบรรยากาศสังเคราะห์ของม็อบจะหรี่ลงเองอัตโนมัติ</div>
     </div>
 
     <div class="memory-modal-backdrop" id="authModal">
@@ -2920,6 +2964,7 @@ function initSound(){
 }
 function tickSound(){
   if(!audioCtx || !vitalsPrefs.sound) return;
+  if(ytDucking){ masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.6); return; }
   const asleep = vitals.sleepStage==='asleep';
   const active = mobReactionState!=='idle';
   const target = asleep ? 0.012 : (active ? 0.055 : 0.026*(0.5+vitals.energy*0.5));
@@ -2946,6 +2991,127 @@ function pingSound(power){
   }catch(e){}
 }
 function swellSound(power){ pingSound(power*0.6); }
+
+/* ---------- เพลงจาก YouTube ----------
+   ใช้ YouTube IFrame Player API ของทางการ (ไม่มี key, embed ตามปกติ)
+   เก็บเฉพาะ id/ประเภทของวิดีโอ/เพลย์ลิสต์ไว้ใน localStorage ไม่ใช่ตัวเนื้อหา */
+const YT_LAST_KEY = 'mob_yt_last_v1';
+const YT_VOL_KEY  = 'mob_yt_volume_v1';
+let ytPlayer=null, ytApiRequested=false, ytPendingCbs=[], ytDucking=false;
+
+function extractYouTubeRef(raw){
+  const s = String(raw||'').trim();
+  if(!s) return null;
+  if(/^[\w-]{11}$/.test(s)) return { type:'video', id:s, raw:s };
+  let m = s.match(/[?&]list=([\w-]+)/);
+  const listId = m ? m[1] : null;
+  m = s.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+  const videoId = m ? m[1] : null;
+  if(videoId) return { type:'video', id:videoId, listId, raw:s };
+  if(listId)  return { type:'playlist', id:listId, raw:s };
+  return null;
+}
+function ensureYouTubeAPI(cb){
+  if(window.YT && window.YT.Player){ cb(); return; }
+  ytPendingCbs.push(cb);
+  if(ytApiRequested) return;
+  ytApiRequested = true;
+  const prevReady = window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady = function(){
+    if(typeof prevReady==='function') prevReady();
+    ytPendingCbs.forEach(f=>{ try{ f(); }catch(e){ console.warn('yt ready cb failed', e); } });
+    ytPendingCbs = [];
+  };
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  tag.onerror = ()=>showToast('โหลด YouTube player ไม่สำเร็จ (เช็คอินเทอร์เน็ต)');
+  document.head.appendChild(tag);
+}
+function loadYouTubeRef(ref){
+  if(!ref) return;
+  try{ localStorage.setItem(YT_LAST_KEY, JSON.stringify(ref)); }catch(e){}
+  ensureYouTubeAPI(()=>{
+    const savedVol = Number(safeLsGet(YT_VOL_KEY) || 70);
+    if(!ytPlayer){
+      const opts = ref.type==='playlist'
+        ? { listType:'playlist', list:ref.id }
+        : Object.assign({ videoId:ref.id }, ref.listId ? { listType:'playlist', list:ref.listId } : {});
+      ytPlayer = new YT.Player('ytFrame', {
+        height:'100%', width:'100%',
+        playerVars: Object.assign({ autoplay:1, rel:0, modestbranding:1 }, opts),
+        events: {
+          onReady: ()=>{ ytPlayer.setVolume(savedVol); const vol=document.getElementById('ytVol'); if(vol) vol.value=savedVol; updateYtNowPlaying(); },
+          onStateChange: onYtStateChange,
+          onError: ()=>showToast('เล่นวิดีโอนี้ไม่ได้ (อาจถูกจำกัดการฝัง)')
+        }
+      });
+    }else if(ref.type==='playlist'){
+      ytPlayer.loadPlaylist({ list:ref.id });
+    }else{
+      ytPlayer.loadVideoById(ref.id);
+    }
+  });
+}
+function onYtStateChange(e){
+  const YTn = window.YT;
+  const playBtn = document.getElementById('ytPlayBtn');
+  if(!YTn) return;
+  if(e.data===YTn.PlayerState.PLAYING){
+    ytDucking = true; if(playBtn) playBtn.textContent='⏸'; updateYtNowPlaying();
+  }else if(e.data===YTn.PlayerState.PAUSED || e.data===YTn.PlayerState.ENDED){
+    ytDucking = false; if(playBtn) playBtn.textContent='▶';
+  }
+}
+function updateYtNowPlaying(){
+  const el = document.getElementById('ytNow');
+  if(!el || !ytPlayer || typeof ytPlayer.getVideoData!=='function') return;
+  try{
+    const data = ytPlayer.getVideoData();
+    el.textContent = (data && data.title) ? data.title : 'กำลังเล่น...';
+  }catch(e){}
+}
+
+const ytWidgetEl = document.getElementById('ytWidget');
+document.getElementById('ytToggleBtn').addEventListener('click', ()=>{
+  ytWidgetEl.classList.toggle('collapsed');
+});
+document.getElementById('ytClose').addEventListener('click', ()=> ytWidgetEl.classList.add('collapsed'));
+document.getElementById('ytLoadBtn').addEventListener('click', ()=>{
+  const input = document.getElementById('ytInput');
+  const ref = extractYouTubeRef(input.value);
+  if(!ref){ showToast('วางลิงก์วิดีโอหรือเพลย์ลิสต์ YouTube ให้ถูกต้องก่อนครับ'); return; }
+  loadYouTubeRef(ref);
+  input.value='';
+});
+document.getElementById('ytInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter') document.getElementById('ytLoadBtn').click();
+});
+document.getElementById('ytPlayBtn').addEventListener('click', ()=>{
+  if(!ytPlayer){
+    const last = safeLsGet(YT_LAST_KEY);
+    if(last){ try{ loadYouTubeRef(JSON.parse(last)); }catch(e){} }
+    else showToast('ยังไม่มีเพลง — วางลิงก์ก่อนครับ');
+    return;
+  }
+  const st = ytPlayer.getPlayerState();
+  if(st===1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
+});
+document.getElementById('ytPrevBtn').addEventListener('click', ()=>{ if(ytPlayer && ytPlayer.previousVideo) ytPlayer.previousVideo(); });
+document.getElementById('ytNextBtn').addEventListener('click', ()=>{ if(ytPlayer && ytPlayer.nextVideo) ytPlayer.nextVideo(); });
+document.getElementById('ytVol').addEventListener('input', e=>{
+  const v = Number(e.target.value);
+  if(ytPlayer) ytPlayer.setVolume(v);
+  try{ localStorage.setItem(YT_VOL_KEY, String(v)); }catch(err){}
+});
+(function primeYtWidget(){
+  const last = safeLsGet(YT_LAST_KEY);
+  if(!last) return;
+  try{
+    const ref = JSON.parse(last);
+    document.getElementById('ytNow').textContent = 'เพลงล่าสุด: '+(ref.raw||ref.id)+' · กด ▶ เพื่อฟังต่อ';
+  }catch(e){}
+})();
+
 
 /* ---------- ม็อบทักเอง (proactive) ----------
    ค่าเริ่มต้นใช้กฎในเครื่องล้วน ไม่เรียก API เลย จึงไม่เปลืองโทเคน
