@@ -711,6 +711,9 @@ const SYNAPSE_HALFLIFE_DAYS = 21;      // เส้นที่ไม่ถู�
 const MEMORY_HALFLIFE_DAYS  = 30;      // ความจำที่ไม่ถูกเรียกใช้จะจางลงครึ่งหนึ่งทุก 30 วัน
 const PROACTIVE_MIN_GAP_MS  = 20*60*1000;
 const PROACTIVE_AI_DAILY_CAP = 3;
+const MOB_BIRTH_KEY = 'mob_birth_at_v1';
+const CORE_MIN_AGE_DAYS = 10;   // ต้องอยู่มานานพอ ไม่ใช่แค่เพิ่งสร้าง
+const CORE_MIN_ACCESS   = 8;    // ต้องถูกเรียกคืนซ้ำจริง
 
 let vitalsPrefs = { daydream:true, decay:true, sound:false, proactive:true, proactiveAI:false };
 try{ Object.assign(vitalsPrefs, JSON.parse(localStorage.getItem(VITALS_PREF_KEY)||'{}')); }catch(e){}
@@ -737,6 +740,76 @@ let audioCtx=null, droneA=null, droneB=null, masterGain=null, filterNode=null, l
 let proactiveState = { lastAt:0, aiCount:0, aiDay:'' };
 try{ Object.assign(proactiveState, JSON.parse(localStorage.getItem(PROACTIVE_KEY)||'{}')); }catch(e){}
 let proactiveBusy=false;
+
+/* ---------- พื้นหลังตามอารมณ์ ---------- */
+let mobBirthAt = null;
+let moodColor = { r:96, g:165, b:250 };       // สีปัจจุบัน (ค่อยๆ ไหลเข้าหาเป้าหมาย)
+let moodTargetColor = { r:96, g:165, b:250 };
+let moodIntensity = 0.3, moodTargetIntensity = 0.3;
+function hexToRgb(hex){
+  const h = hex.replace('#','');
+  return { r:parseInt(h.slice(0,2),16), g:parseInt(h.slice(2,4),16), b:parseInt(h.slice(4,6),16) };
+}
+function computeMoodTarget(){
+  const mems = activeMemories().filter(m=>!m.archived);
+  const scores = {};
+  mems.forEach(m=>{
+    const d = daysSince(m.updatedAt);
+    if(d>14) return;                                   // อารมณ์พื้นหลังสะท้อนแค่ช่วงใกล้ๆ นี้
+    const w = Math.max(0,1-d/14) * (0.6+m.importance*0.12);
+    scores[m.emotionId] = (scores[m.emotionId]||0)+w;
+  });
+  const entries = Object.entries(scores);
+  if(!entries.length) return;
+  entries.sort((a,b)=>b[1]-a[1]);
+  const total = entries.reduce((s,[,v])=>s+v,0);
+  const [topId, topScore] = entries[0];
+  const dominance = total ? topScore/total : 0;
+  const emo = emotionById[topId];
+  if(!emo) return;
+  moodTargetColor = hexToRgb(emo.color);
+  moodTargetIntensity = Math.max(0.18, Math.min(0.85, 0.25 + dominance*0.6));
+}
+function easeMood(dt){
+  const k = Math.min(1, dt*0.25);
+  moodColor.r += (moodTargetColor.r-moodColor.r)*k;
+  moodColor.g += (moodTargetColor.g-moodColor.g)*k;
+  moodColor.b += (moodTargetColor.b-moodColor.b)*k;
+  moodIntensity += (moodTargetIntensity-moodIntensity)*k;
+}
+
+/* ---------- อายุ / พัฒนาการ ---------- */
+const GROWTH_STAGES = [
+  { id:'newborn', name:'แรกเกิด',          minDays:0  },
+  { id:'child',   name:'วัยเด็ก',          minDays:2  },
+  { id:'teen',    name:'วัยรุ่น',          minDays:14 },
+  { id:'mature',  name:'เติบโตเต็มที่',    minDays:45 },
+];
+function ensureBirthDate(){
+  let b = safeLsGet(MOB_BIRTH_KEY);
+  if(!b){
+    const stamps = memoryRecords.map(m=>new Date(m.createdAt).getTime()).filter(x=>!isNaN(x));
+    b = stamps.length ? new Date(Math.min(...stamps)).toISOString() : new Date().toISOString();
+    try{ localStorage.setItem(MOB_BIRTH_KEY, b); }catch(e){}
+  }
+  mobBirthAt = b;
+}
+function mobAgeDays(){ return mobBirthAt ? daysSince(mobBirthAt) : 0; }
+function currentGrowthStage(){
+  const age = mobAgeDays();
+  let cur = GROWTH_STAGES[0];
+  GROWTH_STAGES.forEach(s=>{ if(age>=s.minDays) cur=s; });
+  return cur;
+}
+function growthFactor(){
+  return Math.max(0, Math.min(1, Math.sqrt(Math.min(mobAgeDays(),45)/45)));
+}
+
+/* ---------- ความจำแกนกลาง ---------- */
+function isCoreMemory(m){
+  if(!m || m.archived) return false;
+  return daysSince(m.createdAt)>=CORE_MIN_AGE_DAYS && (m.accessCount||0)>=CORE_MIN_ACCESS;
+}
 const VITAL_META = [
   { key:'coherence',   name:'เกาะเกี่ยว',  color:'#63ddff', desc:'โครงข่ายความจำยึดกันแน่นแค่ไหน' },
   { key:'resonance',   name:'ก้องสะท้อน',  color:'#7ef0c0', desc:'ความจำถูกเรียกใช้และมีของใหม่เข้ามาบ่อยแค่ไหน' },
@@ -1134,7 +1207,7 @@ function buildMemoryNodes(){
       cluster:i%CLUSTER_COLORS.length,label:m.title,excerpt:m.content,degree:0,isToc:false,
       isSelfAxis:m.ownerId==='sai'&&m.region==='midline',memoryId:m.id,
       importance:m.importance,pinned:m.pinned,archived:m.archived,tags:m.tags||[],
-      vitality:memoryVitality(m)
+      vitality:memoryVitality(m), isCore:isCoreMemory(m)
     });
   });
   const realCount=nodes.length;
@@ -1211,7 +1284,7 @@ function renderMemoryList(){
   filtered.sort((a,b)=>memorySort==='important'?(b.importance-a.importance)||(Number(b.pinned)-Number(a.pinned))||(new Date(b.updatedAt)-new Date(a.updatedAt)):(new Date(b.updatedAt)-new Date(a.updatedAt)));
   document.getElementById('memoryStats').innerHTML='<div class="mini-stat"><b>'+activeMemories().length+'</b> ความทรงจำ</div><div class="mini-stat"><b>'+activeMemories().filter(m=>m.pinned).length+'</b> ปักหมุด</div><div class="mini-stat"><b>'+activeMemories().filter(m=>m.archived).length+'</b> เก็บถาวร</div><div class="mini-stat"><b>'+activeMemories().filter(m=>m.importance>=4).length+'</b> ความสำคัญสูง</div>';
   const list=document.getElementById('memoryList');list.innerHTML='';if(!filtered.length){list.innerHTML='<div class="memory-empty">ไม่พบความทรงจำที่ตรงกับตัวกรองนี้</div>';return;}
-  filtered.forEach(m=>{const owner=ownerById[m.ownerId],emo=emotionById[m.emotionId],reg=REGIONS.find(r=>r.id===m.region),item=document.createElement('div');item.className='memory-item';const excerpt=m.content.length>220?m.content.slice(0,220)+'…':m.content;item.innerHTML='<div class="mi-actions"><button class="mi-action" data-action="pin">'+(m.pinned?'เลิกปักหมุด':'ปักหมุด')+'</button><button class="mi-action" data-action="archive">'+(m.archived?'คืนจากถาวร':'เก็บถาวร')+'</button><button class="mi-action" data-action="edit">แก้ไข</button><button class="mi-action" data-action="delete">ลบ</button></div><div class="mi-top"><span class="mi-dot" style="background:'+owner.color+'"></span><span class="mi-title">'+escapeHtml(m.title)+'</span></div><div class="mi-badges"><span class="badge" style="color:'+owner.color+'">'+escapeHtml(owner.name)+'</span><span class="badge">'+escapeHtml(reg.name)+'</span><span class="badge" style="color:'+emo.color+'">'+escapeHtml(emo.name)+'</span>'+(m.archived?'<span class="badge">เก็บถาวร</span>':'')+'</div><div class="mi-content">'+escapeHtml(excerpt)+'</div><div class="mi-tags">'+m.tags.map(t=>'<span class="tag">#'+escapeHtml(t)+'</span>').join('')+'</div><div class="importance">ความสำคัญ '+('★'.repeat(m.importance)+'☆'.repeat(5-m.importance))+' · อัปเดต '+new Date(m.updatedAt).toLocaleString('th-TH')+'</div>';
+  filtered.forEach(m=>{const owner=ownerById[m.ownerId],emo=emotionById[m.emotionId],reg=REGIONS.find(r=>r.id===m.region),item=document.createElement('div');item.className='memory-item';const excerpt=m.content.length>220?m.content.slice(0,220)+'…':m.content;item.innerHTML='<div class="mi-actions"><button class="mi-action" data-action="pin">'+(m.pinned?'เลิกปักหมุด':'ปักหมุด')+'</button><button class="mi-action" data-action="archive">'+(m.archived?'คืนจากถาวร':'เก็บถาวร')+'</button><button class="mi-action" data-action="edit">แก้ไข</button><button class="mi-action" data-action="delete">ลบ</button></div><div class="mi-top"><span class="mi-dot" style="background:'+owner.color+'"></span><span class="mi-title">'+escapeHtml(m.title)+'</span></div><div class="mi-badges"><span class="badge" style="color:'+owner.color+'">'+escapeHtml(owner.name)+'</span><span class="badge">'+escapeHtml(reg.name)+'</span><span class="badge" style="color:'+emo.color+'">'+escapeHtml(emo.name)+'</span>'+(m.archived?'<span class="badge">เก็บถาวร</span>':'')+(isCoreMemory(m)?'<span class="badge" style="color:#ffe1a8">แกนกลาง</span>':'')+'</div><div class="mi-content">'+escapeHtml(excerpt)+'</div><div class="mi-tags">'+m.tags.map(t=>'<span class="tag">#'+escapeHtml(t)+'</span>').join('')+'</div><div class="importance">ความสำคัญ '+('★'.repeat(m.importance)+'☆'.repeat(5-m.importance))+' · อัปเดต '+new Date(m.updatedAt).toLocaleString('th-TH')+'</div>';
     item.addEventListener('click',e=>{const btn=e.target.closest('[data-action]');if(btn){e.stopPropagation();const a=btn.dataset.action;if(a==='pin')toggleMemoryFlag(m.id,'pinned');else if(a==='archive')toggleMemoryFlag(m.id,'archived');else if(a==='edit')openMemoryEditor(m.id);else deleteMemory(m.id);return;}touchMemory(m.id);selectMemoryRecord(m.id);});list.appendChild(item);});
 }
 
@@ -1244,7 +1317,7 @@ function nodeVisible(n){
 
 let lastT = performance.now();
 
-function drawGalaxyBackground(t){
+function drawGalaxyBackground(t, gf=1){
   ctx.clearRect(0,0,W,H);
   const bg=ctx.createLinearGradient(0,0,0,H);
   bg.addColorStop(0,'#000205'); bg.addColorStop(.55,'#000103'); bg.addColorStop(1,'#000000');
@@ -1257,12 +1330,23 @@ function drawGalaxyBackground(t){
   neb.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=neb; ctx.fillRect(0,0,W,H);
 
+  // Mood wash: a slow-shifting tint reflecting the emotional tone of recent memories —
+  // this is the field's ambient mood, not a UI element, so it stays subtle.
+  const mc=moodColor, mi=moodIntensity;
+  const wash=ctx.createRadialGradient(W*.5,H*.46,10,W*.5,H*.46,Math.max(W,H)*.55);
+  wash.addColorStop(0, 'rgba('+Math.round(mc.r)+','+Math.round(mc.g)+','+Math.round(mc.b)+','+(0.055+mi*0.055).toFixed(3)+')');
+  wash.addColorStop(0.55, 'rgba('+Math.round(mc.r)+','+Math.round(mc.g)+','+Math.round(mc.b)+','+(0.02+mi*0.025).toFixed(3)+')');
+  wash.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.save(); ctx.globalCompositeOperation='screen'; ctx.fillStyle=wash; ctx.fillRect(0,0,W,H); ctx.restore();
+
   const t2=t*.00004;
+  const starSpan = Math.floor(galaxyStars.length*(0.4+0.6*gf));   // ยังเด็กอยู่ = ท้องฟ้ายังไม่เต็ม
   galaxyStars.forEach((s,i)=>{
+    if(i>starSpan) return;
     const x=((s.x + t2*(0.015 + (i%5)*0.002))%1)*W;
     const y=((s.y + t2*(0.01 + (i%3)*0.0015))%1)*H;
     const tw=0.58+0.42*Math.sin(t*.0012*s.speed+s.phase);
-    ctx.globalAlpha=s.a*tw*0.4;
+    ctx.globalAlpha=s.a*tw*0.4*(0.55+0.45*gf);
     ctx.fillStyle=i%9===0?'#bfefff':'#e8f8ff';
     ctx.beginPath();ctx.arc(x,y,s.r,0,Math.PI*2);ctx.fill();
   });
@@ -1328,11 +1412,13 @@ function strokeEdgeBatch(edgePaths, projectFn, ctxRef, alpha, width, glow){
 function render(t){
   const dt=(t-lastT)/1000; lastT=t;
   tickVitals(t);
+  easeMood(dt);
+  const gf = growthFactor();
   // Sleep slows the whole field down; a high-energy circadian phase speeds it slightly up.
   const paceFactor = vitals.sleepStage==='asleep' ? 0.22 : (vitals.sleepStage==='drowsy' ? 0.6 : (0.85+vitals.energy*0.35));
   if(state.autoRotate&&!state.dragging&&!state.mode2D)state.yaw+=dt*0.055*paceFactor;
 
-  drawGalaxyBackground(t);
+  drawGalaxyBackground(t, gf);
   const cx=W/2,cy=H/2+8;
   const proj=state.mode2D
     ? (p)=>project2D(p,state.zoom,cx,cy,state.panX,state.panY)
@@ -1357,11 +1443,12 @@ function render(t){
 
   // Hub rays: thin light-strands fanning out from key memories, like the reference photo.
   if(state.showSynapse && hubRays.length){
+    const rayGf = 0.35+0.65*gf;
     hubRays.forEach(r=>{
       const pa=proj({x:r.hx,y:r.hy,z:r.hz});
       const pb=proj({x:r.dx,y:r.dy,z:r.dz});
       const g=ctx.createLinearGradient(pa.sx,pa.sy,pb.sx,pb.sy);
-      g.addColorStop(0,'rgba(190,225,255,.14)');
+      g.addColorStop(0,'rgba(190,225,255,'+(.14*rayGf)+')');
       g.addColorStop(1,'rgba(190,225,255,0)');
       ctx.strokeStyle=g;
       ctx.lineWidth=0.6;
@@ -1422,19 +1509,29 @@ function render(t){
     ctx.save();
     ctx.globalAlpha=alpha;
     ctx.shadowColor=nodeColor(n);
-    ctx.shadowBlur=isSel?16:(n.pinned?8:(n.isToc?5:2));
+    ctx.shadowBlur=isSel?16:(n.isCore?11:(n.pinned?8:(n.isToc?5:2)));
     ctx.fillStyle=nodeColor(n);
     ctx.beginPath();ctx.arc(p.sx,p.sy,r,0,Math.PI*2);ctx.fill();
     ctx.shadowBlur=0;
     ctx.fillStyle='rgba(235,251,255,.95)';
     ctx.beginPath();ctx.arc(p.sx,p.sy,Math.max(.55,r*.34),0,Math.PI*2);ctx.fill();
 
-    // tiny four-point star for important memories
-    if(imp>=4&&!dimmed){
+    // tiny four-point star for important memories — only once ม็อบ is old enough to bother with detail
+    if(imp>=4&&!dimmed&&gf>0.12){
       ctx.strokeStyle='rgba(178,239,255,.72)';
       ctx.lineWidth=.55;
       const q=r*2.6;
       ctx.beginPath();ctx.moveTo(p.sx-q,p.sy);ctx.lineTo(p.sx+q,p.sy);ctx.moveTo(p.sx,p.sy-q);ctx.lineTo(p.sx,p.sy+q);ctx.stroke();
+    }
+    // hexagon ring: a memory ม็อบ has settled into permanently through repeated recall
+    if(n.isCore&&!dimmed){
+      ctx.strokeStyle='rgba(255,225,168,.85)';
+      ctx.lineWidth=.85;
+      ctx.shadowColor='rgba(255,214,140,.7)'; ctx.shadowBlur=6;
+      const hR=r*2.3;
+      ctx.beginPath();
+      for(let k=0;k<6;k++){ const ang=Math.PI/3*k - Math.PI/6; const hx=p.sx+hR*Math.cos(ang), hy=p.sy+hR*Math.sin(ang); if(k===0)ctx.moveTo(hx,hy); else ctx.lineTo(hx,hy); }
+      ctx.closePath(); ctx.stroke();
     }
     ctx.restore();
 
@@ -1693,6 +1790,10 @@ function selectNode(i){
   const regionB = document.createElement('span'); regionB.className='badge'; regionB.textContent = REGIONS.find(r=>r.id===n.region).name;
   const emoB = document.createElement('span'); emoB.className='badge'; emoB.style.color=emotionById[n.emotionId].color; emoB.textContent = emotionById[n.emotionId].name;
   badges.appendChild(ownerB); badges.appendChild(regionB); badges.appendChild(emoB);
+  if(mem && isCoreMemory(mem)){
+    const coreB=document.createElement('span'); coreB.className='badge'; coreB.style.color='#ffe1a8'; coreB.textContent='ความจำแกนกลาง';
+    badges.appendChild(coreB);
+  }
   document.getElementById('detailExcerpt').textContent = mem ? mem.content : n.excerpt;
   document.getElementById('detailMeta').textContent = mem ? ('ความสำคัญ '+mem.importance+'/5 · '+(mem.pinned?'ปักหมุด':'')+(mem.archived?' · เก็บถาวร':'')+' · เปิดดู '+mem.accessCount+' ครั้ง') : ('เชื่อมโยง ' + n.degree + ' เส้น' + (n.isToc? ' · ก้อนสารบัญ':'') + (n.isSelfAxis? ' · แกนตัวตน':''));
   document.getElementById('detailPanel').classList.add('show');
@@ -1847,6 +1948,8 @@ function renderCommand(){
     {label:'ก้อนความจำทั้งหมด', value:activeMemories().length.toLocaleString()},
     {label:'เส้นไซแนปส์ทั้งหมด', value:edges.length.toLocaleString()},
     {label:'ตัวตนที่เชื่อมอยู่', value:OWNERS.length.toLocaleString()},
+    {label:'อายุม็อบ', value:Math.floor(mobAgeDays())+' วัน · '+currentGrowthStage().name},
+    {label:'ความจำแกนกลาง', value:activeMemories().filter(isCoreMemory).length.toLocaleString()},
     {label:'สถานะซิงค์', value:authSession ? ('ซิงค์แล้ว · '+authSession.user.email) : 'Local-first (ยังไม่ได้ซิงค์)'},
   ].forEach(s=>{
     const c=document.createElement('div'); c.className='stat-card';
@@ -2503,7 +2606,7 @@ function daysSince(iso){
 }
 function memoryVitality(m){
   if(!m) return 1;
-  if(m.pinned) return 1;                       // ปักหมุด = ไม่ลืม
+  if(m.pinned || isCoreMemory(m)) return 1;    // ปักหมุด หรือ กลายเป็นแกนกลางแล้ว = ไม่ลืม
   const d = Math.min(daysSince(m.lastAccessAt), daysSince(m.updatedAt));
   const halfLife = MEMORY_HALFLIFE_DAYS*0.47 + m.importance*22;        // สำคัญมาก = ลืมช้ากว่ามาก
   const base = Math.pow(0.5, d/halfLife);
@@ -2722,7 +2825,9 @@ function sleepStageLabel(){
 }
 function updateVitalsUI(){
   const st = document.getElementById('lifeStateText');
-  if(st) st.textContent = sleepStageLabel()+' · '+vitals.phaseName+' (พลัง '+Math.round(vitals.energy*100)+'%)';
+  const stage = currentGrowthStage();
+  const age = Math.floor(mobAgeDays());
+  if(st) st.textContent = sleepStageLabel()+' · '+vitals.phaseName+' (พลัง '+Math.round(vitals.energy*100)+'%) · '+stage.name+' (อายุ '+age+' วัน)';
   renderVitalBars('vitalBars');
   const note = document.getElementById('proactiveQuotaNote');
   if(note){
@@ -2783,8 +2888,9 @@ function tickVitals(t){
   // อัปเดตตัวเลขสภาวะทุก 3 วินาที
   if(t-lastVitalsUiAt>3000){
     lastVitalsUiAt=t;
-    nodes.forEach(n=>{ if(n.memoryId){ const m=memoryRecords.find(x=>x.id===n.memoryId); if(m) n.vitality=memoryVitality(m); } });
+    nodes.forEach(n=>{ if(n.memoryId){ const m=memoryRecords.find(x=>x.id===n.memoryId); if(m){ n.vitality=memoryVitality(m); n.isCore=isCoreMemory(m); } } });
     recomputeInternalState();
+    computeMoodTarget();
     updateVitalsUI();
     tickProactive();
     tickSound();
@@ -3024,6 +3130,10 @@ updateVitalsUI();
 
 
 initMemoryStore();
+ensureBirthDate();
+computeMoodTarget();
+moodColor = { ...moodTargetColor };
+moodIntensity = moodTargetIntensity;
 initAuth();
 renderDreamLog();
 })();
